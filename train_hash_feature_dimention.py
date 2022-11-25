@@ -163,7 +163,7 @@ def train_img():
     #     start_time = time.time()
 
     Total_time = 0
-    #　ssh-keygen -t rsa -C “409151773@qq.com”
+    #　ssh-keygen -t rsa -C “youremail@example.com”
     # dataloader = DataLoader(MyDataset,batch_size = 30000,shuffle=True,num_workers=8)
 
     with tqdm(total=epochs) as pbar:
