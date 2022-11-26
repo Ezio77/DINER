@@ -220,7 +220,7 @@ def train_img():
     if render_img_mod:
         print("Start rendering image.")
         with torch.no_grad():
-            render_raw_image(model,save_path=os.path.join(render_img_prefix,render_img_path))
+            utils.render_raw_image(model,save_path=os.path.join(render_img_prefix,render_img_path))
 
 
     if render_hash_img_mod:
@@ -243,7 +243,7 @@ def train_img():
 if __name__ == "__main__":
 
 
-    train()
+    train_img()
 
 
     # if opt.training_data_type == 'oneDim':
