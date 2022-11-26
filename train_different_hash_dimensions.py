@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 import math
-from model import Siren,NeRF,WaveNet,MLP,HashSiren,ComplexHashSiren,HashMLP,PureSiren,peMLP
+from model import Siren,NeRF,WaveNet,MLP,HashSiren,ComplexHashSiren,HashMLP
 from dataio import ImageData,oneDimData
 from skimage import io
 from skimage.util import img_as_float
@@ -21,8 +21,7 @@ from PIL import Image
 from tqdm.autonotebook import tqdm
 from torch.utils.data import DataLoader
 from opt import HyperParameters
-
-
+import scipy.io
 
 def train_img(opt):
     img_path                =       opt.img_path
@@ -79,10 +78,8 @@ def train_img(opt):
     device = torch.device('cuda')
     criteon = nn.MSELoss()
 
-    if grayscale:
-        out_features = 1
-    else:
-        out_features = 3
+
+    out_features = 3
 
     model_input,gt = ImageData(image_path = img_path,
                                sidelength = sidelength,
@@ -130,15 +127,16 @@ def train_img(opt):
     training process
     """
 
-    if log_psnr == True:
-        iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
-        psnr_logger = np.zeros_like(iter_logger)
+    # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+    # psnr_logger = np.zeros_like(iter_logger)
+    # psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+    psnr_logger = np.zeros((epochs+1))
 
     with tqdm(total=epochs) as pbar:
         # for step in range(steps):
 
         max_psnr = 0
-        start_time = time.time()   
+        start_time = time.time()
         for epoch in range(epochs):
             
             loss = 0
@@ -149,7 +147,7 @@ def train_img(opt):
             loss.backward()
             optimizer.step()
 
-            if (epoch+1) % steps_til_summary == 0 and log_psnr == True:
+            if (epoch+1) % steps_til_summary == 0:
                 psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
             psnr_temp = utils.loss2psnr(loss)
@@ -163,17 +161,26 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    if log_psnr == True:
-        # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-        np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
+    # if log_psnr == True:
+    #     # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
+    #     np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
 
-    return max_psnr
+    return psnr_logger
 
 if __name__ == "__main__":
 
     opt = HyperParameters()
 
     for pic_idx in range(1,31):
-        opt.img_path = f"pic/RGB_OR_1200x1200_{pic_idx:03d}"
+        opt.img_path = f"pic/RGB_OR_1200x1200_{pic_idx:03d}.png"
 
-        train_img()
+        psnr = train_img(opt)
+
+        if pic_idx == 1:
+            psnr_logger = psnr[None,:]
+        else:
+            psnr_logger = np.concatenate([psnr_logger,psnr[None,:]],axis = 0)
+
+    
+    scipy.io.savemat(f'different_hash_dimensions/{opt.model_type}_hashTableLength{opt.input_dim:02d}_results.mat'\
+                    ,{"data":psnr_logger})
