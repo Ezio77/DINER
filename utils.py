@@ -11,7 +11,7 @@ from skimage.util import img_as_float
 import time
 import pdb
 import imageio
-from opt import *
+from opt import HyperParameters
 from sklearn.preprocessing import normalize
 import open3d as o3d
 
@@ -108,9 +108,7 @@ def ImageResize(img_path,sidelength,resized_img_path):
 
 
 
-
-def render_raw_image(model,save_path,img_resolution = opt.sidelength,color_type = opt.color_type):
-    if color_type == "RGB":
+def render_raw_image(model,save_path,img_resolution):
         device = torch.device('cuda')
         H,W = img_resolution
         [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
@@ -121,25 +119,6 @@ def render_raw_image(model,save_path,img_resolution = opt.sidelength,color_type 
         img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
 
         io.imsave(save_path,img)
-    
-    elif color_type == "YCbCr":
-        device = torch.device("cuda")
-        H,W = img_resolution
-        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-        xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]   
-        rgb = (model(xy).view(H,W,3) + 1) / 2
-        img = (rgb.detach().cpu().numpy() * 255).astype(np.float64)
-        # print(np.max(img),np.min(img))
-        img = skimage.color.convert_colorspace(img, "YCbCr", "RGB")
-        print(np.max(img),np.min(img))
-        print(type(img))
-        io.imsave(opt.render_img_path,img)
-    
-    else:
-        return NotImplementedError("This color type is not implemented!")
-    
 
 # 新实现的hash iamge渲染函数
 def render_hash_image(model,render_img_resolution,save_path):

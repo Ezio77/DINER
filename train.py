@@ -20,8 +20,7 @@ from sklearn.preprocessing import normalize
 from PIL import Image
 from tqdm.autonotebook import tqdm
 from torch.utils.data import DataLoader
-from opt import HyperParameters()
-
+from opt import HyperParameters
 
 
 def train_img(opt):
@@ -197,17 +196,6 @@ def train_img(opt):
 
             if (epoch+1) % 100 == 0:
                 tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, psnr_temp,Total_time))
-                
-            # if (epoch+1) % steps_til_summary == 0:
-            #     pass
-                # with torch.no_grad():
-                    # new_dir = "pic45_res1000_HashSiren"
-                    # cond_mkdir(f"results/{new_dir}/raw")
-                    # cond_mkdir(f"results/{new_dir}/hash")
-                    # cond_mkdir(f"results/{new_dir}/error")
-                    # render_raw_image(model,save_path = f"results/{new_dir}/raw/raw_{epoch+1}.png")
-                    # render_hash_image(model,render_img_resolution,save_path = f"results/{new_dir}/hash/hash_{epoch+1}.png")
-                    # render_error_image(gt,model_output,save_path = f"results/{new_dir}/error/error_{epoch+1}.png")
 
             pbar.update(1)
 
@@ -238,16 +226,7 @@ def train_img(opt):
 
     return max_psnr,Total_time
 
-
-
 if __name__ == "__main__":
 
     opt = HyperParameters()
     train_img()
-
-
-    # if opt.training_data_type == 'oneDim':
-    #     train_1dim()
-
-
-

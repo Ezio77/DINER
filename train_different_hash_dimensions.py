@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 import math
-from model import Siren,NeRF,WaveNet,MLP,Siren_interp,ComplexHashSiren,HashMLP,PureSiren,peMLP
+from model import Siren,NeRF,WaveNet,MLP,HashSiren,ComplexHashSiren,HashMLP,PureSiren,peMLP
 from dataio import ImageData,oneDimData
 from skimage import io
 from skimage.util import img_as_float
@@ -68,10 +68,12 @@ def train_img(opt):
     """
     make directory
     """
-    cond_mkdir(save_mod_prefix)
-    cond_mkdir(log_psnr_prefix)
-    cond_mkdir(render_img_prefix)
+    # def makeDir():
+    #     cond_mkdir(save_mod_prefix)
+    #     cond_mkdir(log_psnr_prefix)
+    #     cond_mkdir(render_img_prefix)
 
+    # makeDir()
 
 
     device = torch.device('cuda')
@@ -87,7 +89,6 @@ def train_img(opt):
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)[0]
 
-
     model_input = model_input.to(device)
     gt = gt.to(device)
 
@@ -96,18 +97,15 @@ def train_img(opt):
     # xy,rgb = Dataset[0]
     # hash_table_length = len(ImageData(image_path=img_path,sidelength = sidelength,grayscale = grayscale,image_circle = image_circle))
 
-
-
-
     if model_type == 'Siren':
-        model = PureSiren(in_features = input_dim,
-                          hidden_features = hidden_features,
-                          hidden_layers = hidden_layers,
-                          out_features = out_features,
-                          ).to(device = device)
+        model = Siren(in_features = input_dim,
+                      hidden_features = hidden_features,
+                      hidden_layers = hidden_layers,
+                      out_features = out_features,
+                      ).to(device = device)
 
     elif model_type == 'HashSiren':
-        model = Siren(hash_mod = hash_mod,
+        model = HashSiren(hash_mod = hash_mod,
                       hash_table_length = hash_table_length,
                       in_features = input_dim,
                       hidden_features = hidden_features,
@@ -117,7 +115,7 @@ def train_img(opt):
                       first_omega_0 = first_omega_0,
                       hidden_omega_0 = hidden_omega_0).to(device = device)
 
-    elif model_type == 'instantNGP':
+    elif model_type == 'HashMLP':
         model = HashMLP(hash_mod = hash_mod,
                         hash_table_length = hash_table_length, 
                         in_features = input_dim, 
@@ -125,25 +123,8 @@ def train_img(opt):
                         hidden_layers = hidden_layers,
                         out_features = out_features).to(device = device)
 
-    elif model_type == 'ComplexHashSiren':
-        model = ComplexHashSiren(hash_mod = hash_mod,
-                                 hash_table_length = hash_table_length,
-                                 in_features = input_dim,
-                                 hidden_features = hidden_features,
-                                 hidden_layers = hidden_layers,
-                                 out_features = out_features,
-                                 siren_hidden_features = siren_hidden_features,
-                                 siren_hidden_layers = siren_hidden_layers,
-                                 outermost_linear = True,
-                                 first_omega_0 = first_omega_0,
-                                 hidden_omega_0 = hidden_omega_0).to(device = device)
 
-    elif model_type == 'peMLP':
-        model = peMLP(in_features = input_dim,
-                      out_features = out_features,
-                      hidden_layers = hidden_layers,
-                      hidden_features = hidden_features
-                      ).to(device = device)
+
 
     else:
         raise NotImplementedError("Model_type not supported!")
@@ -228,15 +209,8 @@ def train_img(opt):
     return max_psnr,Total_time
 
 
-
 if __name__ == "__main__":
 
     opt = HyperParameters()
 
     train_img()
-
-    # if opt.training_data_type == 'oneDim':
-    #     train_1dim()
-
-
-
