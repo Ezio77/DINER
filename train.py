@@ -20,11 +20,11 @@ from sklearn.preprocessing import normalize
 from PIL import Image
 from tqdm.autonotebook import tqdm
 from torch.utils.data import DataLoader
-from opt import *
+from opt import HyperParameters()
 
 
 
-def train_img():
+def train_img(opt):
     img_path                =       opt.img_path
     steps                   =       opt.steps
     lr                      =       opt.lr
@@ -242,7 +242,7 @@ def train_img():
 
 if __name__ == "__main__":
 
-
+    opt = HyperParameters()
     train_img()
 
 

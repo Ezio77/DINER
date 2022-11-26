@@ -16,7 +16,7 @@ import numpy as np
 from skimage.color import rgb2gray
 import pdb
 from pykdtree.kdtree import KDTree
-from opt import *
+from opt import HyperParameters
 import utils
 import skvideo
 import skvideo.io
