@@ -537,7 +537,6 @@ class Embedding(nn.Module):
 
 class HashMLP(nn.Module):
     def __init__(self,
-                hash_mod,
                 hash_table_length, 
                 in_features, 
                 hidden_features,
@@ -545,17 +544,10 @@ class HashMLP(nn.Module):
                 out_features,):
                 
         super().__init__()
-        # self.N_freqs = N_freqs
-        # self.PEoutput_features = in_features*(2*self.N_freqs+1)
-        # self.table = nn.parameter.Parameter(data=data.to("cuda:0"),requires_grad=True)
 
-        self.hash_mod = hash_mod
-        if hash_mod:
-            self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
 
         self.net = []
-        # self.net.append(Embedding(in_features,self.N_freqs))
-        # self.net.append(ReluLayer(self.PEoutput_features, hidden_features))
 
         self.net.append(ReluLayer(in_features, hidden_features))
 
@@ -567,12 +559,9 @@ class HashMLP(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        if self.hash_mod:
-            output = self.net(self.table)
-            output = torch.clamp(output, min = -1.0,max = 1.0)
-        else:
-            output = self.net(coords)
-            output = torch.clamp(output, min = -1.0,max = 1.0)
+        output = self.net(self.table)
+        output = torch.clamp(output, min = -1.0,max = 1.0)
+
         return output
 
 class NeRF(nn.Module):
@@ -691,14 +680,9 @@ class WaveNet(nn.Module):
 """
 Activation Function
 """
-
 def WaveletActivation(x):
     out = torch.sin(30*x) * torch.exp(- x*x / 2.0)
     return out
 
 def SincActivation(x):
     return torch.sin(x) / torch.abs(x)
-
-"""
-Activation Function
-"""

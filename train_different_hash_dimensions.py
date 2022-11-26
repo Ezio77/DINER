@@ -105,32 +105,26 @@ def train_img(opt):
                       ).to(device = device)
 
     elif model_type == 'HashSiren':
-        model = HashSiren(hash_mod = hash_mod,
-                      hash_table_length = hash_table_length,
-                      in_features = input_dim,
-                      hidden_features = hidden_features,
-                      hidden_layers = hidden_layers,
-                      out_features = out_features,
-                      outermost_linear = True,
-                      first_omega_0 = first_omega_0,
-                      hidden_omega_0 = hidden_omega_0).to(device = device)
+        model = HashSiren(hash_table_length = hash_table_length,
+                          in_features = input_dim, # hash table width
+                          hidden_features = hidden_features,
+                          hidden_layers = hidden_layers,
+                          out_features = out_features,
+                          outermost_linear = True,
+                          first_omega_0 = first_omega_0,
+                          hidden_omega_0 = hidden_omega_0).to(device = device)
 
     elif model_type == 'HashMLP':
-        model = HashMLP(hash_mod = hash_mod,
-                        hash_table_length = hash_table_length, 
-                        in_features = input_dim, 
+        model = HashMLP(hash_table_length = hash_table_length, 
+                        in_features = input_dim, # hash table width
                         hidden_features = hidden_features,
                         hidden_layers = hidden_layers,
                         out_features = out_features).to(device = device)
-
-
-
 
     else:
         raise NotImplementedError("Model_type not supported!")
         
     optimizer = optim.Adam(lr = lr,params = model.parameters())
-
 
     """
     training process
@@ -140,17 +134,9 @@ def train_img(opt):
         iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
         psnr_logger = np.zeros_like(iter_logger)
 
-    # if log_training_time == True:
-    #     start_time = time.time()
-
-    Total_time = 0
-    #　ssh-keygen -t rsa -C “youremail@example.com”
-    # dataloader = DataLoader(MyDataset,batch_size = 30000,shuffle=True,num_workers=8)
-
     with tqdm(total=epochs) as pbar:
         # for step in range(steps):
-        
-        
+
         max_psnr = 0
         start_time = time.time()   
         for epoch in range(epochs):
@@ -163,11 +149,6 @@ def train_img(opt):
             loss.backward()
             optimizer.step()
 
-            # 等待GPU完成同步
-            torch.cuda.synchronize()
-
-            Total_time += (time.time() - start_time) / 1000.
-
             if (epoch+1) % steps_til_summary == 0 and log_psnr == True:
                 psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
@@ -175,42 +156,24 @@ def train_img(opt):
 
             max_psnr = max(max_psnr,psnr_temp)
 
-
             if (epoch+1) % 100 == 0:
-                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, psnr_temp,Total_time))
+                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f" % (epoch+1, loss, psnr_temp))
 
             pbar.update(1)
 
-    # if log_training_time == True:
-    #     TotalTime = time.time() - start_time
-    #     print(f"Total training time : {TotalTime}s.")
-
     print(f"MAX_PSNR : {max_psnr}")
 
-    if render_img_mod:
-        print("Start rendering image.")
-        with torch.no_grad():
-            render_raw_image(model,save_path=os.path.join(render_img_prefix,render_img_path))
-
-
-    if render_hash_img_mod:
-        print("Start rendering hash image.")
-        with torch.no_grad():
-            render_hash_image(model,render_img_resolution,False,0)
-
     if log_psnr == True:
-        utils.cond_mkdir("log_psnr")
         # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
         np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
 
-    if save_mod == True:
-        torch.save(model.state_dict(), os.path.join(save_mod_prefix,save_mod_path))
-
-    return max_psnr,Total_time
-
+    return max_psnr
 
 if __name__ == "__main__":
 
     opt = HyperParameters()
 
-    train_img()
+    for pic_idx in range(1,31):
+        opt.img_path = f"pic/RGB_OR_1200x1200_{pic_idx:03d}"
+
+        train_img()

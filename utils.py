@@ -109,26 +109,24 @@ def ImageResize(img_path,sidelength,resized_img_path):
 
 
 def render_raw_image(model,save_path,img_resolution):
-        device = torch.device('cuda')
-        H,W = img_resolution
-        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-        xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]
-        rgb = (model(xy).view(H,W,3) + 1) / 2
-        img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+    device = torch.device('cuda')
+    H,W = img_resolution
+    [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+    x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
+    y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
+    xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]
+    rgb = (model(xy).view(H,W,3) + 1) / 2
+    img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
 
-        io.imsave(save_path,img)
+    io.imsave(save_path,img)
 
 # 新实现的hash iamge渲染函数
 def render_hash_image(model,render_img_resolution,save_path):
     device = torch.device('cuda')
     H = render_img_resolution[0]
     W = render_img_resolution[1]
-    if opt.grayscale:
-        C = 1
-    else:
-        C = 3
+
+    C = 3
     x_min = min(model.table[0,:]).item()
     x_max = max(model.table[0,:]).item()
     y_min = min(model.table[1,:]).item()
