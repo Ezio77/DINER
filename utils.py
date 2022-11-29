@@ -14,6 +14,8 @@ import imageio
 from opt import HyperParameters
 from sklearn.preprocessing import normalize
 import open3d as o3d
+import scipy.io
+
 
 def to_numpy(x):
     return x.detach().cpu().numpy()
@@ -173,6 +175,20 @@ def render_volume(model,hash_table_length,render_volume_resolution = 255):
     o3d.io.write_point_cloud(f"pointCloud/res45_2_64_w1.ply", pcd)
 
     return pcd
+
+def save_data(data,save_path):
+    # save_mod : 'mat', 'npy'
+    data = to_numpy(data)
+    if save_path[-3:] == 'mat':
+        scipy.io.savemat(save_path,{"data":data})
+    elif save_path[-3:] == 'npy':
+        np.save(save_path,data)
+    else:
+        raise NotImplementedError("File format not supported!")
+        
+
+
+
 
 if __name__ == '__main__':
     

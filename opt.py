@@ -71,10 +71,9 @@ def HyperParameters():
                     help='path to the source image')
     p.add_argument('--sidelength', nargs='+', type=int,
                     help='resized image resolutions')
+    p.add_argument('--hash_table_resolution',nargs='+',type=int)
     p.add_argument('--grayscale', action='store_true', default=False,
                     help='whether to use grayscale')
-    p.add_argument('--image_circle',action='store_true', default=False,
-                    help='whether to transform image to a circle shape')
 
     # model options
     p.add_argument('--n_hash',type = int, default = 1,

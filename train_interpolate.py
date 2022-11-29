@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 import math
-from model import Siren,NeRF,WaveNet,MLP,HashSiren,ComplexHashSiren,HashMLP
+from model import HashSiren_interp,HashMLP_interp
 from dataio import ImageData,oneDimData
 from skimage import io
 from skimage.util import img_as_float
@@ -35,28 +35,22 @@ def train_img(opt):
     first_omega_0           =       opt.w0
     hidden_omega_0          =       opt.w0
     model_type              =       opt.model_type
-    N_freqs                 =       opt.N_freqs
-    image_circle            =       opt.image_circle
-    hash_mod                =       opt.hash_mod
     render_img_mod          =       opt.render_img_mod 
     log_psnr                =       opt.log_psnr
     steps_til_summary       =       opt.steps_til_summary
     log_training_time       =       opt.log_training_time
     save_mod                =       opt.save_mod
     input_dim               =       opt.input_dim
-    color_type              =       opt.color_type
-    n_hash                  =       opt.n_hash
     render_hash_img_mod     =       opt.render_hash_img_mod
     log_psnr_file           =       opt.log_psnr_file
     epochs                  =       opt.epochs
-    siren_hidden_features   =       opt.siren_hidden_features
-    siren_hidden_layers     =       opt.siren_hidden_layers
     save_mod_path           =       opt.save_mod_path
     render_img_path         =       opt.render_img_path
     remain_raw_resolution   =       opt.remain_raw_resolution
     save_mod_prefix         =       opt.save_mod_prefix
     log_psnr_prefix         =       opt.log_psnr_prefix
     render_img_prefix       =       opt.render_img_prefix
+    hash_table_resolution   =       opt.hash_table_resolution
     """
     check parameters
     """
@@ -67,17 +61,16 @@ def train_img(opt):
     """
     make directory
     """
-    # def makeDir():
-    #     cond_mkdir(save_mod_prefix)
-    #     cond_mkdir(log_psnr_prefix)
-    #     cond_mkdir(render_img_prefix)
+    def makeDir():
+        cond_mkdir(save_mod_prefix)
+        cond_mkdir(log_psnr_prefix)
+        cond_mkdir(render_img_prefix)
+    makeDir()
 
-    # makeDir()
 
 
     device = torch.device('cuda')
     criteon = nn.MSELoss()
-
 
     out_features = 3
 
@@ -89,20 +82,10 @@ def train_img(opt):
     model_input = model_input.to(device)
     gt = gt.to(device)
 
-    hash_table_length = model_input.shape[0]
 
-    # xy,rgb = Dataset[0]
-    # hash_table_length = len(ImageData(image_path=img_path,sidelength = sidelength,grayscale = grayscale,image_circle = image_circle))
-
-    if model_type == 'Siren':
-        model = Siren(in_features = input_dim,
-                      hidden_features = hidden_features,
-                      hidden_layers = hidden_layers,
-                      out_features = out_features,
-                      ).to(device = device)
-
-    elif model_type == 'HashSiren':
-        model = HashSiren(hash_table_length = hash_table_length,
+    if model_type == 'HashSiren':
+        model = HashSiren_interp(opt = opt,
+                          hash_table_resolution = hash_table_resolution,
                           in_features = input_dim, # hash table width
                           hidden_features = hidden_features,
                           hidden_layers = hidden_layers,
@@ -111,8 +94,9 @@ def train_img(opt):
                           first_omega_0 = first_omega_0,
                           hidden_omega_0 = hidden_omega_0).to(device = device)
 
+    """
     elif model_type == 'HashMLP':
-        model = HashMLP(hash_table_length = hash_table_length, 
+        model = HashMLP_interp(hash_table_length = hash_table_length, 
                         in_features = input_dim, # hash table width
                         hidden_features = hidden_features,
                         hidden_layers = hidden_layers,
@@ -120,7 +104,9 @@ def train_img(opt):
 
     else:
         raise NotImplementedError("Model_type not supported!")
-        
+    """
+
+
     optimizer = optim.Adam(lr = lr,params = model.parameters())
 
     """
@@ -133,10 +119,9 @@ def train_img(opt):
     psnr_logger = np.zeros((epochs+1))
 
     with tqdm(total=epochs) as pbar:
-        # for step in range(steps):
 
         max_psnr = 0
-        start_time = time.time()
+
         for epoch in range(epochs):
             
             loss = 0
@@ -161,29 +146,12 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    # if log_psnr == True:
-    #     # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-    #     np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-
     return psnr_logger
 
 if __name__ == "__main__":
 
     opt = HyperParameters()
 
-    # for opt.imput_dim in [1,2,3,4,5]:
-    for i in range(1,6):
-        opt.input_dim = i
-        for pic_idx in range(1,31):
-            opt.img_path = f"pic/RGB_OR_1200x1200_{pic_idx:03d}.png"
-
-            psnr = train_img(opt)
-
-            if pic_idx == 1:
-                psnr_logger = psnr[None,:]
-            else:
-                psnr_logger = np.concatenate([psnr_logger,psnr[None,:]],axis = 0)
-
-        scipy.io.savemat(f'different_hash_dimensions_results/{opt.model_type}_hashTableLength{opt.input_dim:02d}_epoch10000_results.mat',{"data":psnr_logger})
+    train_img(opt)
 
 

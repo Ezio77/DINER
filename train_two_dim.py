@@ -15,13 +15,32 @@ import time
 import pdb
 # from utils import loss2psnr
 import utils
-from utils import *
 from sklearn.preprocessing import normalize
 from PIL import Image
 from tqdm.autonotebook import tqdm
 from torch.utils.data import DataLoader
 from opt import HyperParameters
 import scipy.io
+
+
+# def render_hash_img(model,render_img_resolution,save_path):
+#     device = torch.device('cuda')
+#     H = render_img_resolution[0]
+#     W = render_img_resolution[1]
+#     with torch.no_grad():
+#     return 
+
+
+
+def render_2_dim_image(model_output,render_img_resolution,save_path):
+    H = render_img_resolution[0]
+    W = render_img_resolution[1]
+    pixels = (utils.to_numpy(model_output).reshape(H,W,-1) + 1.) / 2.
+    padding = np.zeros((H,W,1))
+    pixels = (np.concatenate([pixels,padding],axis=-1) * 255).astype(np.uint8)
+    io.imsave(save_path,pixels)
+
+
 
 def train_img(opt):
     img_path                =       opt.img_path
@@ -35,8 +54,6 @@ def train_img(opt):
     first_omega_0           =       opt.w0
     hidden_omega_0          =       opt.w0
     model_type              =       opt.model_type
-    N_freqs                 =       opt.N_freqs
-    image_circle            =       opt.image_circle
     hash_mod                =       opt.hash_mod
     render_img_mod          =       opt.render_img_mod 
     log_psnr                =       opt.log_psnr
@@ -44,13 +61,9 @@ def train_img(opt):
     log_training_time       =       opt.log_training_time
     save_mod                =       opt.save_mod
     input_dim               =       opt.input_dim
-    color_type              =       opt.color_type
-    n_hash                  =       opt.n_hash
     render_hash_img_mod     =       opt.render_hash_img_mod
     log_psnr_file           =       opt.log_psnr_file
     epochs                  =       opt.epochs
-    siren_hidden_features   =       opt.siren_hidden_features
-    siren_hidden_layers     =       opt.siren_hidden_layers
     save_mod_path           =       opt.save_mod_path
     render_img_path         =       opt.render_img_path
     remain_raw_resolution   =       opt.remain_raw_resolution
@@ -79,12 +92,14 @@ def train_img(opt):
     criteon = nn.MSELoss()
 
 
-    out_features = 3
+    out_features = 2
 
     model_input,gt = ImageData(image_path = img_path,
                                sidelength = sidelength,
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)[0]
+
+    gt = gt[:,0:2]
 
     model_input = model_input.to(device)
     gt = gt.to(device)
@@ -133,10 +148,8 @@ def train_img(opt):
     psnr_logger = np.zeros((epochs+1))
 
     with tqdm(total=epochs) as pbar:
-        # for step in range(steps):
 
         max_psnr = 0
-        start_time = time.time()
         for epoch in range(epochs):
             
             loss = 0
@@ -161,9 +174,13 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    # if log_psnr == True:
-    #     # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-    #     np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
+    # log psnr
+    scipy.io.savemat('two_dim/psnr_4.mat',{"data":psnr_logger})
+
+    data = torch.cat([model.table,model_output],dim = -1)
+    utils.save_data(data,'two_dim/points_4.mat')
+
+    render_2_dim_image(model_output,[1200,1200],'two_dim/pic_4.png')
 
     return psnr_logger
 
@@ -171,19 +188,4 @@ if __name__ == "__main__":
 
     opt = HyperParameters()
 
-    # for opt.imput_dim in [1,2,3,4,5]:
-    for i in range(1,6):
-        opt.input_dim = i
-        for pic_idx in range(1,31):
-            opt.img_path = f"pic/RGB_OR_1200x1200_{pic_idx:03d}.png"
-
-            psnr = train_img(opt)
-
-            if pic_idx == 1:
-                psnr_logger = psnr[None,:]
-            else:
-                psnr_logger = np.concatenate([psnr_logger,psnr[None,:]],axis = 0)
-
-        scipy.io.savemat(f'different_hash_dimensions_results/{opt.model_type}_hashTableLength{opt.input_dim:02d}_epoch10000_results.mat',{"data":psnr_logger})
-
-
+    train_img(opt)

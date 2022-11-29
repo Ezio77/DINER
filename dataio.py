@@ -21,6 +21,7 @@ import utils
 import skvideo
 import skvideo.io
 import skvideo.datasets
+
 class ImageData(Dataset):
     def __init__(self,
                 image_path,
@@ -66,18 +67,12 @@ class ImageData(Dataset):
         rgb = img.view(-1,C)
         xy = torch.cat([x,y],dim = -1)
         return xy,rgb
-    
 
     def __len__(self):
         return self.image.shape[0] * self.image.shape[1]
 
     def __getitem__(self, idx):
         return self.xy, self.rgb
-
-
-
-
-
 
 """
 class ImageData(Dataset):
@@ -206,8 +201,6 @@ class ImageData(Dataset):
         return self.xy, self.rgb
 """
 
-
-
 class oneDimData(Dataset):
     def __init__(self,data_length,data_distribution):
         super().__init__()
@@ -224,8 +217,6 @@ class oneDimData(Dataset):
     def __getitem__(self, idx):
         if idx > 0: raise IndexError
         return self.data
-
-
 
 class LightFiedData(Dataset):
     def __init__(self,data_path,sidelength):
@@ -361,8 +352,6 @@ class MeshSDF(Dataset):
                {'sdf': torch.from_numpy(sdf).float()}
 """
 
-
-
 class MeshSDF(Dataset):
     ''' convert point cloud to SDF '''
 
@@ -438,9 +427,6 @@ class MeshSDF(Dataset):
                {'sdf': torch.from_numpy(sdf).float()}
 
 
-
-
-
 class PointCloud(Dataset):
     def __init__(self, pointcloud_path, on_surface_points, keep_aspect_ratio=True):
         super().__init__()
@@ -495,23 +481,24 @@ class PointCloud(Dataset):
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
                                                               'normals': torch.from_numpy(normals).float()}
 
+"""
+class Video(Dataset):
+    def __init__(self, path_to_video):
+        super().__init__()
+        if 'npy' in path_to_video:
+            self.vid = np.load(path_to_video)
+        elif 'mp4' in path_to_video:
+            self.vid = skvideo.io.vread(path_to_video,height=272,width=480).astype(np.single) / 255.
 
-# class Video(Dataset):
-#     def __init__(self, path_to_video):
-#         super().__init__()
-#         if 'npy' in path_to_video:
-#             self.vid = np.load(path_to_video)
-#         elif 'mp4' in path_to_video:
-#             self.vid = skvideo.io.vread(path_to_video,height=272,width=480).astype(np.single) / 255.
+        self.shape = self.vid.shape[:-1]
+        self.channels = self.vid.shape[-1]
 
-#         self.shape = self.vid.shape[:-1]
-#         self.channels = self.vid.shape[-1]
+    def __len__(self):
+        return 1
 
-#     def __len__(self):
-#         return 1
-
-#     def __getitem__(self, idx):
-#         return self.vid
+    def __getitem__(self, idx):
+        return self.vid
+"""
 
 class Video(Dataset):
     def __init__(self, path_to_video):
@@ -538,7 +525,6 @@ class Video(Dataset):
 
     def __getitem__(self,idx):
         return torch.tensor((self.norm(self.process())),dtype=torch.float)
-
 
 class VideoData(Dataset):
     def __init__(self,path):
@@ -598,7 +584,6 @@ class VideoData(Dataset):
 
         return self.get_mgrid(sidelen=[self.num_frames,self.H,self.W]),self.process()
 
-
 class VideoIndex(Dataset):
     def __init__(self,N,H,W):
         super().__init__()
@@ -613,7 +598,6 @@ class VideoIndex(Dataset):
 
     def __getitem__(self,idx):
         return self.index[idx]
-
 
 class uniform_color_space_3D(Dataset):
     def __init__(self,R_len,G_len,B_len):
@@ -631,11 +615,6 @@ class uniform_color_space_3D(Dataset):
         return utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3),\
             utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3)
 
-
-
-
-
-
 if __name__ == '__main__':
     # xy,rgb = ImageData(image_path = "pic/RGB_OR_1200x1200_039.png",sidelength = [300,300],grayscale = False,image_circle = False)[0]
     # rgb = rgb.view(300,300,3)
@@ -643,7 +622,7 @@ if __name__ == '__main__':
     # img = (rgb.numpy() * 255).astype(np.uint8)
     # io.imsave("render_pic_data/rawpic39_300.png",img)
 
-    coords,sdf = MeshSDF("sdf/gt_dragon.xyz")[0]
+    # coords,sdf = MeshSDF("sdf/gt_dragon.xyz")[0]
 
     # data = Video(path_to_video="video_data")[0]
     # data = Video(path_to_video=skvideo.datasets.bikes())

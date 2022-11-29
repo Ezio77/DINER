@@ -255,7 +255,7 @@ class HashSiren(nn.Module):
         output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
 
-class ReLu_interp(nn.Module):
+class HashMLP_interp(nn.Module):
     def __init__(self,
                 opt,
                 n_resolution,
@@ -308,7 +308,6 @@ class ReLu_interp(nn.Module):
             self.net.append(ReluLayer(hidden_features, out_features))
         
         self.net = nn.Sequential(*self.net)
-    
 
     # coords [N,H*W,2]
     def forward(self, coords):
@@ -379,36 +378,27 @@ class ReLu_interp(nn.Module):
         # output = torch.sigmoid(output)
         return output
 
-class Siren_interp(nn.Module):
+class HashSiren_interp(nn.Module):
     def __init__(self,
                 opt,
-                n_resolution,
-                hash_mod,
+                hash_table_resolution, # [H,W]
                 in_features,
                 hidden_features,
                 hidden_layers,
                 out_features,
-                n_hash = 1,
-                outermost_linear=True, 
+                outermost_linear=True,
                 first_omega_0=30,
                 hidden_omega_0=30.0):
 
 
         super().__init__()
-        self.hash_mod = hash_mod
-        self.n_hash = n_hash
         self.opt = HyperParameters()
-        self.n_resolution = n_resolution
 
-        self.table_list = nn.ParameterList([])
+        # self.table_list.append(nn.parameter.Parameter(1e-4 * (torch.rand((opt.input_sidelength[0]*opt.input_sidelength[1]*(4**i),2))*2 -1),requires_grad = True))
 
+        self.hash_table_resolution = hash_table_resolution
 
-        for i in range(n_resolution):
-            self.table_list.append(nn.parameter.Parameter(1e-4 * (torch.rand((opt.input_sidelength[0]*opt.input_sidelength[1]*(4**i),2))*2 -1),requires_grad = True))
-
-        # for i in range(n_resolution):
-        #     self.table_list.append(nn.parameter.Parameter(1e-4 * (torch.rand((opt.input_sidelength[0]*opt.input_sidelength[1]*(4**i),2))*2 -1),requires_grad = True).reshape(1,opt.input_sidelength[0]*(2**i),opt.input_sidelength[1]*(2**i),2).permute(0,3,1,2))
-
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_resolution[0]*hash_table_resolution[1],in_features))*2 -1),requires_grad = True)
 
 
         self.net = []
@@ -436,29 +426,20 @@ class Siren_interp(nn.Module):
 
     # coords [N,H*W,2]
     def forward(self, coords):
-        if self.hash_mod:
-            # coords.reshape(1,self.opt.sidelength[0],self.opt.sidelength[1],2)
-            # coords = coords.permute(0,3,1,2)
+        # coords.reshape(1,self.opt.sidelength[0],self.opt.sidelength[1],2)
+        # coords = coords.permute(0,3,1,2)
 
-            grid = coords[None,None,...].to(device="cuda:0")  # grid (1,1,Batch_size,2)
+        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2] 输入的坐标
 
-            # input [1,1,H*W,2]
+        # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
 
-            # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
+        # net_in [640000,4]
+        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],2).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2)
 
-            # net_in [640000,4]
-            net_in = torch.cat([nn.functional.grid_sample(self.table_list[i].reshape(1,self.opt.input_sidelength[0]*(2**i),self.opt.input_sidelength[1]*(2**i),2).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2) for i in range(self.n_resolution)],dim = -1)
+        # net_in = net_in.permute(0,2,3,1).reshape(self.opt.output_sidelength[0],self.opt.output_sidelength[1],2)
+        # net_in = net_in.permute(0,2,3,1).squeeze().reshape(-1,2)
 
-
-            # net_in = net_in.permute(0,2,3,1).reshape(self.opt.output_sidelength[0],self.opt.output_sidelength[1],2)
-            # net_in = net_in.permute(0,2,3,1).squeeze().reshape(-1,2)
-
-            output = self.net(net_in)
-
-            output = output / self.n_hash
-        else:
-            output = self.net(coords)
-
+        output = self.net(net_in)
         
         output = torch.clamp(output, min = -1.0,max = 1.0) 
         # torch.clamp_(output, min = -1.0,max = 1.0)
