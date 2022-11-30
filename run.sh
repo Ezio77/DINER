@@ -3,4 +3,6 @@
 
 # CUDA_VISIBLE_DEVICES=0 python train_interpolate.py -c config/interpolate.ini
 
-CUDA_VISIBLE_DEVICES=0 python train_two_dim.py -c config/two_dim.ini
+# CUDA_VISIBLE_DEVICES=0 python train_two_dim.py -c config/two_dim.ini
+
+CUDA_VISIBLE_DEVICES=0 python train_lin.py -c config/lin.ini

@@ -12,8 +12,8 @@ from skimage import io
 # res = torch.nn.functional.grid_sample(input,grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True)
 
 img = io.imread("pic/RGB_OR_1200x1200_001.png")
-img[:,:,2] = 0
+img[:,:,2] = (0.5 * img[:,:,0] + 0.5 * img[:,:,1]).astype(np.uint8)
 
-io.imsave('pic/RGB_OR_1200x1200_001_2_dim.png',img)
+io.imsave('pic/RGB_OR_1200x1200_001_lin.png',img)
 
 breakpoint()
