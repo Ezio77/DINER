@@ -87,10 +87,8 @@ def train_img(opt):
 
     # makeDir()
 
-
     device = torch.device('cuda')
     criteon = nn.MSELoss()
-
 
     out_features = 2
 
@@ -175,12 +173,12 @@ def train_img(opt):
     print(f"MAX_PSNR : {max_psnr}")
 
     # log psnr
-    scipy.io.savemat('two_dim/psnr_4.mat',{"data":psnr_logger})
+    # scipy.io.savemat('two_dim/psnr_4.mat',{"data":psnr_logger})
 
-    data = torch.cat([model.table,model_output],dim = -1)
-    utils.save_data(data,'two_dim/points_4.mat')
+    # data = torch.cat([model.table,model_output],dim = -1)
+    # utils.save_data(data,'two_dim/points_4.mat')
 
-    render_2_dim_image(model_output,[1200,1200],'two_dim/pic_4.png')
+    # render_2_dim_image(model_output,[1200,1200],'two_dim/pic_4.png')
 
     return psnr_logger
 
@@ -188,4 +186,17 @@ if __name__ == "__main__":
 
     opt = HyperParameters()
 
-    train_img(opt)
+    # for opt.imput_dim in [1,2,3,4,5]:
+    for i in range(1,5):
+        opt.input_dim = i
+        for pic_idx in range(1,31):
+            opt.img_path = f"pic/rg/RGB_OR_1200x1200_{pic_idx:03d}_rg.png"
+
+            psnr = train_img(opt)
+
+            if pic_idx == 1:
+                psnr_logger = psnr[None,:]
+            else:
+                psnr_logger = np.concatenate([psnr_logger,psnr[None,:]],axis = 0)
+
+        scipy.io.savemat(f'two_dim/{opt.model_type}_hashTableLength{opt.input_dim:02d}_epoch10000_results.mat',{"data":psnr_logger})

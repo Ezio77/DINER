@@ -165,12 +165,12 @@ def train_img(opt):
     print(f"MAX_PSNR : {max_psnr}")
 
     # log psnr
-    scipy.io.savemat('lin/psnr_1.mat',{"data":psnr_logger})
+    # scipy.io.savemat('lin/psnr_4.mat',{"data":psnr_logger})
 
-    data = torch.cat([model.table,model_output],dim = -1)
-    utils.save_data(data,'lin/points_1.mat')
+    # data = torch.cat([model.table,model_output],dim = -1)
+    # utils.save_data(data,'lin/points_4.mat')
 
-    utils.render_raw_image(model,'lin/pic_1.png',[1200,1200])
+    # utils.render_raw_image(model,'lin/pic_4.png',[1200,1200])
 
     return psnr_logger
 
@@ -178,4 +178,17 @@ if __name__ == "__main__":
 
     opt = HyperParameters()
 
-    train_img(opt)
+    # for opt.imput_dim in [1,2,3,4,5]:
+    for i in range(1,5):
+        opt.input_dim = i
+        for pic_idx in range(1,31):
+            opt.img_path = f"pic/lin/RGB_OR_1200x1200_{pic_idx:03d}_lin.png"
+
+            psnr = train_img(opt)
+
+            if pic_idx == 1:
+                psnr_logger = psnr[None,:]
+            else:
+                psnr_logger = np.concatenate([psnr_logger,psnr[None,:]],axis = 0)
+
+        scipy.io.savemat(f'lin/{opt.model_type}_hashTableLength{opt.input_dim:02d}_epoch10000_results.mat',{"data":psnr_logger})

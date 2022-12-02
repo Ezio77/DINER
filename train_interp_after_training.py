@@ -23,6 +23,20 @@ from opt import HyperParameters
 import scipy.io
 
 
+def test_interp(opt,model,model_input):
+    device = torch.device('cuda')
+    
+    with torch.no_grad():
+        rgb = utils.to_numpy(model(model_input))
+        rgb = rgb.reshape(opt.sidelength[0],opt.sidelength[1],3)
+        rgb = (((rgb+1.) / 2.) * 255).astype(np.uint8)
+
+        io.imsave('interpolate_experiments_results/re.png',rgb)
+
+    raw_img = skimage.io.imread('pic/RGB_OR_1200x1200_001.png')
+
+    return skimage.metrics.peak_signal_noise_ratio(rgb,raw_img)
+
 
 
 def train_img(opt):
@@ -75,16 +89,20 @@ def train_img(opt):
 
     out_features = 3
 
-    model_input,gt = ImageData(image_path = img_path,
+    raw_model_input,gt = ImageData(image_path = img_path,
                                sidelength = sidelength,
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)[0]
 
 
-
+    model_input = raw_model_input.reshape(opt.sidelength[0],opt.sidelength[1],2)
+    model_input = model_input[::2,::2,:] # 取奇数行和奇数列
+    model_input = model_input.reshape(-1,2)
     model_input = model_input.to(device)
 
-
+    gt = gt.reshape(opt.sidelength[0],opt.sidelength[1],3)
+    gt = gt[::2,::2,:]
+    gt = gt.reshape(-1,3)
     gt = gt.to(device)
 
 
@@ -150,11 +168,16 @@ def train_img(opt):
             pbar.update(1)
 
     print(f"MAX_PSNR : {max_psnr}")
+    
+
+    print("*"*30)
+    print(test_interp(opt,model,raw_model_input))
+    print("*"*30)
 
 
-    scipy.io.savemat('interpolate_experiments_results/psnr/psnr_2_interp.mat',{"data":psnr_logger})
+    # scipy.io.savemat('interpolate_experiments_results/psnr/psnr_2_interp.mat',{"data":psnr_logger})
 
-    utils.render_raw_image(model,os.path.join('interpolate_experiments_results','render','result_2.png'),[1200,1200])
+    # utils.render_raw_image(model,os.path.join('interpolate_experiments_results','render','result_2.png'),[1200,1200])
 
     return psnr_logger
 

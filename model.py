@@ -393,7 +393,7 @@ class HashSiren_interp(nn.Module):
 
         super().__init__()
         self.opt = HyperParameters()
-
+        self.in_features = in_features
         # self.table_list.append(nn.parameter.Parameter(1e-4 * (torch.rand((opt.input_sidelength[0]*opt.input_sidelength[1]*(4**i),2))*2 -1),requires_grad = True))
 
         self.hash_table_resolution = hash_table_resolution
@@ -434,7 +434,7 @@ class HashSiren_interp(nn.Module):
         # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
 
         # net_in [640000,4]
-        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],2).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2)
+        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
 
         # net_in = net_in.permute(0,2,3,1).reshape(self.opt.output_sidelength[0],self.opt.output_sidelength[1],2)
         # net_in = net_in.permute(0,2,3,1).squeeze().reshape(-1,2)
