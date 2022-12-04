@@ -627,5 +627,8 @@ if __name__ == '__main__':
     # data = Video(path_to_video="video_data")[0]
     # data = Video(path_to_video=skvideo.datasets.bikes())
 
+    coords, data = VideoData('video_data/shaken')[0]
+    breakpoint()
+
     pass
 

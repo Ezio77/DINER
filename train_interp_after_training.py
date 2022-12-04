@@ -24,7 +24,7 @@ import scipy.io
 
 
 def test_interp(opt,model,model_input):
-    device = torch.device('cuda')
+    # device = torch.device('cuda')
     
     with torch.no_grad():
         rgb = utils.to_numpy(model(model_input))
@@ -107,7 +107,7 @@ def train_img(opt):
 
 
     if model_type == 'HashSiren':
-        model = HashSiren_interp(opt = opt,
+        model = HashSiren_interp(
                           hash_table_resolution = hash_table_resolution,
                           in_features = input_dim, # hash table width
                           hidden_features = hidden_features,
@@ -117,9 +117,10 @@ def train_img(opt):
                           first_omega_0 = first_omega_0,
                           hidden_omega_0 = hidden_omega_0).to(device = device)
 
-    """
+
     elif model_type == 'HashMLP':
-        model = HashMLP_interp(hash_table_length = hash_table_length, 
+        model = HashMLP_interp(
+                        hash_table_resolution = hash_table_resolution, 
                         in_features = input_dim, # hash table width
                         hidden_features = hidden_features,
                         hidden_layers = hidden_layers,
@@ -127,7 +128,7 @@ def train_img(opt):
 
     else:
         raise NotImplementedError("Model_type not supported!")
-    """
+
 
 
     optimizer = optim.Adam(lr = lr,params = model.parameters())

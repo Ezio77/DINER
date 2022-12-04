@@ -257,43 +257,20 @@ class HashSiren(nn.Module):
 
 class HashMLP_interp(nn.Module):
     def __init__(self,
-                opt,
-                n_resolution,
-                hash_mod, 
-                in_features, 
-                hidden_features, 
-                hidden_layers, 
+                hash_table_resolution, # [H,W]
+                in_features,
+                hidden_features,
+                hidden_layers,
                 out_features,
-                n_hash = 1, 
                 outermost_linear=True):
         super().__init__()
-        self.hash_mod = hash_mod
-        self.n_hash = n_hash
         self.opt = HyperParameters()
-        self.n_resolution = n_resolution
-        self.table_list = nn.ParameterList([])
-        self.N_x = opt.input_sidelength[0]
-        self.N_y = opt.input_sidelength[1]
+        self.in_features = in_features
+        self.hash_table_resolution = hash_table_resolution
+    
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_resolution[0]*hash_table_resolution[1],in_features))*2 -1),requires_grad = True)
 
 
-        for i in range(n_resolution):
-            self.table_list.append(nn.parameter.Parameter(1e-4 * (torch.rand((self.N_x*self.N_y,2))*2 -1),requires_grad = True))
-            self.N_x *= 2
-            self.N_y *= 2
-
-
-
-        # self.table_list = nn.parameter.Parameter(torch.zeros((n_hash,hash_table_length,in_features)),requires_grad = True)
-        # self.table_list = nn.parameter.Parameter(torch.randn((n_hash,hash_table_length,in_features)),requires_grad = True)
-
-
-        # [self.x, self.y] = torch.meshgrid(torch.linspace(0, opt.output_sidelength[1] - 1, opt.output_sidelength[1]), torch.linspace(0, opt.output_sidelength[0] - 1, opt.output_sidelength[0]))
-        # self.x = (self.x/torch.max(self.x))*2 - 1 
-        # self.y = (self.y/torch.max(self.y))*2 - 1 
-        # self.grid = torch.cat([self.x[...,None],self.y[...,None]],dim = -1)[None,...].to(device="cuda:0")
-
-
-        
         self.net = []
         self.net.append(ReluLayer(in_features, hidden_features))
 
@@ -311,76 +288,14 @@ class HashMLP_interp(nn.Module):
 
     # coords [N,H*W,2]
     def forward(self, coords):
-        if self.hash_mod:
-            # coords.reshape(1,self.opt.sidelength[0],self.opt.sidelength[1],2)
-            # coords = coords.permute(0,3,1,2)
-            # for i in range(self.n_hash):
-
-            grid = coords[None,None,...].to(device="cuda:0")  # grid (1,1,Batch_size,2)
-
-            # grid_x = coords[:,0]
-            # grid_y = coords[:,1] 
-            # grid_x = grid_x[None, None, :, None]
-            # grid_y = grid_y[None, None, :, None]
-            # grid = torch.cat((grid_x, grid_y), dim=-1).to(device="cuda:0")
-
-
-
-
-            for i in range(self.n_resolution):
-                pass
-
-
-
-            # input [1,1,H*W,2]
-            input_1 = self.table1[:,:].reshape(1,self.opt.input_sidelength[0],self.opt.input_sidelength[1],2)
-            input_1 = input_1.permute(0,3,1,2)
-
-            input_2 = self.table2[:,:].reshape(1,800,800,2)
-            input_2 = input_2.permute(0,3,1,2)
-    
-            input_3 = self.table3[:,:].reshape(1,1200,1200,2)
-            input_3 = input_3.permute(0,3,1,2)
-
-            # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
-
-
-            net_in_1 = nn.functional.grid_sample(input_1,grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2)
-
-            net_in_2 = nn.functional.grid_sample(input_2,grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2)
-
-            net_in_3 = nn.functional.grid_sample(input_3,grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,2)
-
-
-            # net_in [640000,4]
-            net_in = torch.cat([net_in_1, net_in_2,net_in_3],dim = -1)
-
-
-            # pdb.set_trace()
-
-            # net_in = net_in.permute(0,2,3,1).reshape(self.opt.output_sidelength[0],self.opt.output_sidelength[1],2)
-            # net_in = net_in.permute(0,2,3,1).squeeze().reshape(-1,2)
-
-            # pdb.set_trace()
-
-
-
-            output = self.net(net_in)
-
-            output = output / self.n_hash
-        else:
-            output = self.net(coords)
-
-        
-        output = torch.clamp(output, min = -1.0,max = 1.0) 
-        # torch.clamp_(output, min = -1.0,max = 1.0)
-
-        # output = torch.sigmoid(output)
+        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2] 输入的坐标
+        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
+        output = self.net(net_in)
+        output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
 
 class HashSiren_interp(nn.Module):
     def __init__(self,
-                opt,
                 hash_table_resolution, # [H,W]
                 in_features,
                 hidden_features,
@@ -544,6 +459,37 @@ class HashMLP(nn.Module):
         output = torch.clamp(output, min = -1.0,max = 1.0)
 
         return output
+
+
+class HashMLP_idx(nn.Module):
+    def __init__(self,
+                hash_table_length, 
+                in_features, 
+                hidden_features,
+                hidden_layers,
+                out_features,):
+                
+        super().__init__()
+
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
+
+        self.net = []
+
+        self.net.append(ReluLayer(in_features, hidden_features))
+
+        for i in range(hidden_layers):
+            self.net.append(ReluLayer(hidden_features, hidden_features))
+
+        self.net.append(nn.Linear(hidden_features, out_features))
+        # self.net.append(nn.Sigmoid())
+        self.net = nn.Sequential(*self.net)
+
+    def forward(self,start,end):
+        output = self.net(self.table[start:end])
+        output = torch.clamp(output, min = -1.0,max = 1.0)
+
+        return output
+
 
 class NeRF(nn.Module):
     def __init__(self,

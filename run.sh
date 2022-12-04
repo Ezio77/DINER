@@ -7,4 +7,6 @@
 
 # CUDA_VISIBLE_DEVICES=0 python train_lin.py -c config/lin.ini
 
-CUDA_VISIBLE_DEVICES=2 python train_interp_after_training.py -c config/interpolate.ini
+# CUDA_VISIBLE_DEVICES=2 python train_interp_after_training.py -c config/interpolate.ini
+
+CUDA_VISIBLE_DEVICES=1 python train_video.py -c config/video.ini

@@ -13,13 +13,19 @@ from skimage import io
 
 
 
-for i in range(1,31):
-    img = io.imread(f"pic/RGB_OR_1200x1200_{i:03d}.png")
-    img[:,:,2] = 0
-    io.imsave(f'pic/rg/RGB_OR_1200x1200_{i:03d}_rg.png',img)
+# for i in range(1,31):
+#     img = io.imread(f"pic/RGB_OR_1200x1200_{i:03d}.png")
+#     img[:,:,2] = 0
+#     io.imsave(f'pic/rg/RGB_OR_1200x1200_{i:03d}_rg.png',img)
 
 # for i in range(1,31):
 #     img = io.imread(f"pic/RGB_OR_1200x1200_{i:03d}.png")
 #     img[:,:,2] = (0.5 * img[:,:,0] + 0.5 * img[:,:,1]).astype(np.uint8)
 
 #     io.imsave(f'pic/lin/RGB_OR_1200x1200_{i:03d}_lin.png',img)
+
+
+
+# a = np.random.randint([10,10])
+# b = a(2:4,3:6)
+
