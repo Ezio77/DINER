@@ -44,6 +44,8 @@ def HyperParameters():
     p.add_argument('--log_psnr',action = 'store_true',default = False)
     p.add_argument('--steps_til_summary',type = int)
     p.add_argument('--render_img_mod',action = 'store_true', default=False)
+    p.add_argument('--render_video_mod',action = 'store_true',default=False)
+    p.add_argument('--render_video_dir',type = str)
     p.add_argument('--render_volume_mod',action = 'store_true', default=False,
                     help = 'whether to render volume or not')
     p.add_argument('--restore_oneDim_resolution',type = int,

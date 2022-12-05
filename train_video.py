@@ -59,11 +59,11 @@ def train_img(opt):
     """
     make directory
     """
-    def makeDir():
-        utils.cond_mkdir(save_mod_prefix)
-        utils.cond_mkdir(log_psnr_prefix)
-        utils.cond_mkdir(render_img_prefix)
-    makeDir()
+    # def makeDir():
+    #     utils.cond_mkdir(save_mod_prefix)
+    #     utils.cond_mkdir(log_psnr_prefix)
+    #     utils.cond_mkdir(render_img_prefix)
+    # makeDir()
 
     device = torch.device('cuda')
     criteon = nn.MSELoss()
@@ -112,7 +112,6 @@ def train_img(opt):
         
     optimizer = optim.Adam(lr = lr,params = model.parameters())
 
-
     """
     training process
     """
@@ -129,83 +128,54 @@ def train_img(opt):
         shuffle = True,
         num_workers = 8)
 
-
-
     if log_psnr == True:
-        iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
-        psnr_logger = np.zeros_like(iter_logger)
+        # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+        psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
 
     # if log_training_time == True:
     #     start_time = time.time()
 
-
-
     Total_time = 0
-    #　ssh-keygen -t rsa -C “youremail@example.com”
     # dataloader = DataLoader(MyDataset,batch_size = 30000,shuffle=True,num_workers=8)
 
-    with tqdm(total=epochs) as pbar:
-        # for step in range(steps):
-        
-        
-        max_psnr = 0
-        start_time = time.time()   
+    with tqdm(total=epochs) as pbar:        
+        max_psnr = 0 
         for epoch in range(epochs):
-            
+            epoch_loss = 0
             for step,frame_idx in enumerate(loader):
-
                 loss = 0
                 model_output = model(int(frame_idx*H*W),int((frame_idx+1)*H*W))
-
                 loss = criteon(model_output,gt[int(frame_idx*H*W):int((frame_idx+1)*H*W)])
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                # # 等待GPU完成同步
+                # torch.cuda.synchronize()
+                epoch_loss += loss
 
-                # 等待GPU完成同步
-                torch.cuda.synchronize()
+            epoch_loss /= frame_number
+            if (epoch+1) % steps_til_summary == 0 and log_psnr == True:
+                psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(epoch_loss)
 
-                Total_time += (time.time() - start_time) / 1000.
+            cur_psnr = utils.loss2psnr(epoch_loss)
+            max_psnr = max(max_psnr,cur_psnr)
 
-                if (epoch+1) % steps_til_summary == 0 and log_psnr == True:
-                    psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
+            tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f" % (epoch+1,epoch_loss,cur_psnr))       
+            pbar.update(1)
 
-                psnr_temp = utils.loss2psnr(loss)
+    print("Training process finished!")
+    print(f"max psnr: {max_psnr}")
 
-                max_psnr = max(max_psnr,psnr_temp)
-
-
-                if (epoch+1) % 100 == 0:
-                    tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, psnr_temp,Total_time))
-
-                pbar.update(1)
-
-    # if log_training_time == True:
-    #     TotalTime = time.time() - start_time
-    #     print(f"Total training time : {TotalTime}s.")
-
-    print(f"MAX_PSNR : {max_psnr}")
-
-    if render_img_mod:
-        print("Start rendering image.")
-        with torch.no_grad():
-            utils.render_raw_image(model,save_path=os.path.join(render_img_prefix,render_img_path))
-
-
-    if render_hash_img_mod:
-        print("Start rendering hash image.")
-        with torch.no_grad():
-            render_hash_image(model,render_img_resolution,False,0)
+    if opt.render_video_mod:
+        print("Start rendering video images.")
+        cond_mkdir(opt.render_video_dir)
+        utils.render_video_images(model,H,W,frame_number,opt.render_video_dir)
 
     if log_psnr == True:
-        utils.cond_mkdir("log_psnr")
-        # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-        np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
+        cond_mkdir(log_psnr_prefix)
+        utils.save_data(psnr_logger,save_path = os.path.join(log_psnr_prefix,log_psnr_file))
 
-    if save_mod == True:
-        torch.save(model.state_dict(), os.path.join(save_mod_prefix,save_mod_path))
-
-    return max_psnr,Total_time
+    return max_psnr
 
 if __name__ == "__main__":
 

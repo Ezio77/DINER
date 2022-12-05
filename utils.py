@@ -15,7 +15,8 @@ from opt import HyperParameters
 from sklearn.preprocessing import normalize
 import open3d as o3d
 import scipy.io
-
+from opt import HyperParameters
+import tqdm
 
 def to_numpy(x):
     return x.detach().cpu().numpy()
@@ -150,9 +151,9 @@ def render_hash_image(model,render_img_resolution,save_path):
 
 # img_raw [N,3]
 # img_const [N,3]
-def render_error_image(img_raw,img_const,save_path):
+def render_error_image(img_raw,img_const,sidelength,save_path):
     img_error = abs(to_numpy(img_raw) - to_numpy(img_const))
-    img_error = img_error.reshape((opt.sidelength[0],opt.sidelength[1],3))*255
+    img_error = img_error.reshape((sidelength[0],sidelength[1],3))*255
     img_error = img_error.astype(np.uint8)
 
     io.imsave(save_path,img_error)
@@ -186,10 +187,18 @@ def save_data(data,save_path):
     else:
         raise NotImplementedError("File format not supported!")
         
-
-
-
+def render_video_images(model,H,W,N,path):
+    with tqdm(total=N) as pbar:
+        for i in range(N):
+            with torch.no_grad():
+                model_output = model(int(i*H*W),int((i+1)*H*W))
+            model_output = to_numpy(model_output)
+            model_output = model_output.reshape(N,H,W,-1)
+            img_path = f'render_{i:02d}.png'
+            img = model_output[i]
+            img = ((img + 1.) / 2. * 255.).astype(np.uint8)
+            skimage.io.imsave(os.path.join(path,img_path),img)
+            pbar.update(1)
 
 if __name__ == '__main__':
-    
     pass
