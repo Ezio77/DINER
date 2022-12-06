@@ -13,5 +13,7 @@
 
 # CUDA_VISIBLE_DEVICES=1 python train_img.py -c config/img.ini
 
-CUDA_VISIBLE_DEVICES=0 python train_img_gray.py -c config/img.ini
+# CUDA_VISIBLE_DEVICES=0 python train_img_gray.py -c config/img.ini
+
+CUDA_VISIBLE_DEVICES=1 python train_img_2dim.py -c config/img.ini
 
