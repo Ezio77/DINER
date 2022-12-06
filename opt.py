@@ -97,8 +97,8 @@ def HyperParameters():
                     help='w0 for the siren model.')
     p.add_argument('--N_freqs', type=int, default=16,
                     help='position embedding frequency numbers')
-    p.add_argument('--siren_hidden_features',type=int, default=128)
-    p.add_argument('--siren_hidden_layers',type=int, default=4)
+    p.add_argument('--siren_hidden_features',type=int)
+    p.add_argument('--siren_hidden_layers',type=int)
 
     opt = p.parse_args()
 

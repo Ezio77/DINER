@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 import math
-from model import Siren,NeRF,WaveNet,MLP,Siren_interp,ComplexHashSiren,HashMLP,HashSiren
+from model import Siren,NeRF,WaveNet,MLP,ComplexHashSiren,HashMLP,HashSiren
 from dataio import ImageData,oneDimData
 from skimage import io
 from skimage.util import img_as_float
@@ -30,62 +30,31 @@ def train_img(opt):
     hidden_layers           =       opt.hidden_layers
     hidden_features         =       opt.hidden_features
     sidelength              =       opt.sidelength
-    render_img_resolution   =       opt.render_img_resolution
     grayscale               =       opt.grayscale
     first_omega_0           =       opt.w0
     hidden_omega_0          =       opt.w0
     model_type              =       opt.model_type
-    N_freqs                 =       opt.N_freqs
-    image_circle            =       opt.image_circle
     hash_mod                =       opt.hash_mod
-    render_img_mod          =       opt.render_img_mod 
     log_psnr                =       opt.log_psnr
     steps_til_summary       =       opt.steps_til_summary
-    log_training_time       =       opt.log_training_time
-    save_mod                =       opt.save_mod
     input_dim               =       opt.input_dim
-    color_type              =       opt.color_type
-    n_hash                  =       opt.n_hash
-    render_hash_img_mod     =       opt.render_hash_img_mod
-    log_psnr_file           =       opt.log_psnr_file
     epochs                  =       opt.epochs
-    siren_hidden_features   =       opt.siren_hidden_features
-    siren_hidden_layers     =       opt.siren_hidden_layers
-    save_mod_path           =       opt.save_mod_path
-    render_img_path         =       opt.render_img_path
     remain_raw_resolution   =       opt.remain_raw_resolution
-    save_mod_prefix         =       opt.save_mod_prefix
-    log_psnr_prefix         =       opt.log_psnr_prefix
-    render_img_prefix       =       opt.render_img_prefix
     """
     check parameters
     """
     if steps % steps_til_summary:
         raise ValueError("Steps_til_summary could not be devided by steps,please set correct number!")
 
-
-    """
-    make directory
-    """
-    cond_mkdir(save_mod_prefix)
-    cond_mkdir(log_psnr_prefix)
-    cond_mkdir(render_img_prefix)
-
-
-
     device = torch.device('cuda')
     criteon = nn.MSELoss()
 
-    if grayscale:
-        out_features = 1
-    else:
-        out_features = 3
+    out_features = 3
 
     model_input,gt = ImageData(image_path = img_path,
                                sidelength = sidelength,
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)[0]
-
 
     model_input = model_input.to(device)
     gt = gt.to(device)
@@ -100,7 +69,7 @@ def train_img(opt):
                           ).to(device = device)
 
     elif model_type == 'HashSiren':
-        model = HashSiren(
+        model = HashSiren(hash_mod = hash_mod,
                       hash_table_length = hash_table_length,
                       in_features = input_dim,
                       hidden_features = hidden_features,
@@ -123,21 +92,19 @@ def train_img(opt):
         
     optimizer = optim.Adam(lr = lr,params = model.parameters())
 
-
     """
     training process
     """
 
-    if log_psnr == True:
-        iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
-        psnr_logger = np.zeros_like(iter_logger)
-
-    # if log_training_time == True:
-    #     start_time = time.time()
+    # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+    # psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+    psnr_logger = np.zeros(int(epochs/steps_til_summary + 1))
 
     Total_time = 0
 
     with tqdm(total=epochs) as pbar:
+        # for step in range(steps):        
+        
         max_psnr = 0
         start_time = time.time()   
         for epoch in range(epochs):
@@ -155,47 +122,30 @@ def train_img(opt):
 
             Total_time += (time.time() - start_time) / 1000.
 
-            if (epoch+1) % steps_til_summary == 0 and log_psnr == True:
-                psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
-            psnr_temp = utils.loss2psnr(loss)
+            psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
-            max_psnr = max(max_psnr,psnr_temp)
-
+            cur_psnr = utils.loss2psnr(loss)
+            max_psnr = max(max_psnr,cur_psnr)
 
             if (epoch+1) % 100 == 0:
-                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, psnr_temp,Total_time))
+                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, cur_psnr,Total_time))
 
             pbar.update(1)
 
-    # if log_training_time == True:
-    #     TotalTime = time.time() - start_time
-    #     print(f"Total training time : {TotalTime}s.")
-
     print(f"MAX_PSNR : {max_psnr}")
 
-    if render_img_mod:
-        print("Start rendering image.")
-        with torch.no_grad():
-            utils.render_raw_image(model,save_path=os.path.join(render_img_prefix,render_img_path))
 
-
-    if render_hash_img_mod:
-        print("Start rendering hash image.")
-        with torch.no_grad():
-            render_hash_image(model,render_img_resolution,False,0)
-
-    if log_psnr == True:
-        utils.cond_mkdir("log_psnr")
-        # np.save(log_psnr_file,np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-        np.save(os.path.join(log_psnr_prefix,log_psnr_file),np.concatenate([iter_logger[None,:],psnr_logger[None,:]],axis = 0))
-
-    if save_mod == True:
-        torch.save(model.state_dict(), os.path.join(save_mod_prefix,save_mod_path))
-
-    return max_psnr,Total_time
+    return psnr_logger
 
 if __name__ == "__main__":
 
     opt = HyperParameters()
-    train_img()
+    psnr_sum = np.zeros((5,30,10001))
+    for i in range(1,6):
+        opt.input_dim = i
+        for pic_idx in range(1,31):
+            opt.img_path = f'pic/RGB_OR_1200x1200_0{pic_idx:02d}.png'
+            psnr_sum[i-1,pic_idx-1,:] = train_img(opt)
+
+    scipy.io.savemat('img_exp/rgb.mat', {"data":psnr_sum})

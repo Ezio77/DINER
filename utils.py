@@ -16,7 +16,7 @@ from sklearn.preprocessing import normalize
 import open3d as o3d
 import scipy.io
 from opt import HyperParameters
-import tqdm
+from tqdm.autonotebook import tqdm
 
 def to_numpy(x):
     return x.detach().cpu().numpy()
@@ -179,7 +179,8 @@ def render_volume(model,hash_table_length,render_volume_resolution = 255):
 
 def save_data(data,save_path):
     # save_mod : 'mat', 'npy'
-    data = to_numpy(data)
+    if isinstance(data,torch.Tensor):
+        data = to_numpy(data)
     if save_path[-3:] == 'mat':
         scipy.io.savemat(save_path,{"data":data})
     elif save_path[-3:] == 'npy':
@@ -192,10 +193,9 @@ def render_video_images(model,H,W,N,path):
         for i in range(N):
             with torch.no_grad():
                 model_output = model(int(i*H*W),int((i+1)*H*W))
-            model_output = to_numpy(model_output)
-            model_output = model_output.reshape(N,H,W,-1)
+            img = to_numpy(model_output)
+            img = img.reshape(H,W,-1)
             img_path = f'render_{i:02d}.png'
-            img = model_output[i]
             img = ((img + 1.) / 2. * 255.).astype(np.uint8)
             skimage.io.imsave(os.path.join(path,img_path),img)
             pbar.update(1)

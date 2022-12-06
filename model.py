@@ -460,7 +460,6 @@ class HashMLP(nn.Module):
 
         return output
 
-
 class HashMLP_idx(nn.Module):
     def __init__(self,
                 hash_table_length, 
@@ -489,7 +488,6 @@ class HashMLP_idx(nn.Module):
         output = torch.clamp(output, min = -1.0,max = 1.0)
 
         return output
-
 
 class NeRF(nn.Module):
     def __init__(self,
