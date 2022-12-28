@@ -150,5 +150,3 @@ if __name__ == "__main__":
 
     scipy.io.savemat('img_exp/2dim.mat', {"data":psnr_sum})
 
-
-    

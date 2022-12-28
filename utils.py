@@ -17,6 +17,8 @@ import open3d as o3d
 import scipy.io
 from opt import HyperParameters
 from tqdm.autonotebook import tqdm
+import pcl
+
 
 def to_numpy(x):
     return x.detach().cpu().numpy()
@@ -123,17 +125,95 @@ def render_raw_image(model,save_path,img_resolution):
 
     io.imsave(save_path,img)
 
+def render_hash_1d_line(model,render_line_resolution,save_path):
+
+    device = torch.device('cuda')
+    L = render_line_resolution
+    C = 3
+
+    x_min,x_max = min(model.table[:,0]).item(),max(model.table[:,0]).item()
+
+    x = torch.linspace(x_min,x_max,steps=render_line_resolution,device=device).view(render_line_resolution,1)
+
+    model.hash_mod = False
+    with torch.no_grad():
+        rgb = (model(x) + 1) / 2
+        rgb = (to_numpy(rgb) * 255).astype(np.uint8)
+    model.hash_mod = True
+
+    x = to_numpy(x)
+
+    data = np.concatenate([x,rgb],axis=-1)
+
+    save_data(data,save_path)
+
+
+
+
+
+
+def render_hash_3d_volume(model,render_volume_resolution,save_path):
+    opt = HyperParameters()
+
+    # save as point cloud
+    device = torch.device('cuda')
+    H = render_volume_resolution[0]
+    W = render_volume_resolution[1]
+    D = render_volume_resolution[2]
+    C = 3
+
+    x_min,x_max = min(model.table[:,0]).item(),max(model.table[:,0]).item()
+    y_min,y_max = min(model.table[:,1]).item(),max(model.table[:,1]).item() 
+    z_min,z_max = min(model.table[:,2]).item(),max(model.table[:,2]).item()
+
+    print(f"range from ({x_min},{y_min},{z_min}) to ({x_max},{y_max},{z_max})")
+
+
+    [x,y,z] = torch.meshgrid(torch.linspace(x_min, x_max, H), torch.linspace(y_min,y_max, W),\
+                    torch.linspace(z_min, z_max, D))
+
+    x = x.contiguous().view(-1, 1)
+    y = y.contiguous().view(-1, 1)
+    z = z.contiguous().view(-1, 1)
+
+
+    xyz = torch.cat([x,y,z],dim = -1).to(device = device)
+
+    with torch.no_grad():
+        model.hash_mod = False
+        rgb = (model(xyz) + 1) / 2
+        rgb = rgb.detach().cpu().numpy()
+        
+
+        model.hash_mod = True
+
+    xyz = to_numpy(xyz)
+
+    # points = np.concatenate([x,y,z,rgb],axis = -1)
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points =  o3d.utility.Vector3dVector(xyz)
+    pcd.colors =  o3d.utility.Vector3dVector(rgb)
+
+    o3d.io.write_point_cloud(save_path,pcd)
+
+    rgb = (rgb * 255.).astype(np.uint8)
+
+    ret = np.concatenate([xyz,rgb],axis = -1)
+
+    save_data(ret,f'3d_hash/result_{opt.epochs}.mat')
+
+
 # 新实现的hash iamge渲染函数
 def render_hash_image(model,render_img_resolution,save_path):
     device = torch.device('cuda')
     H = render_img_resolution[0]
     W = render_img_resolution[1]
-
     C = 3
-    x_min = min(model.table[0,:]).item()
-    x_max = max(model.table[0,:]).item()
-    y_min = min(model.table[1,:]).item()
-    y_max = max(model.table[1,:]).item()
+
+    x_min,x_max = min(model.table[:,0]).item(),max(model.table[:,0]).item()
+    y_min,y_max = min(model.table[:,1]).item(),max(model.table[:,1]).item() 
+
     [x, y] = torch.meshgrid(torch.linspace(x_min, x_max, W), torch.linspace(y_min,y_max, H))
     x = x.contiguous().view(-1, 1)
     y = y.contiguous().view(-1, 1)
@@ -145,8 +225,19 @@ def render_hash_image(model,render_img_resolution,save_path):
     img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
     model.hash_mod = True
 
+    # with torch.no_grad():
+    #     rgb = (model.net(xy).view(H, W, C) + 1) / 2
+    #     img = (to_numpy(rgb)*255).astype(np.uint8)
+
     io.imsave(save_path,img)
     print(f"range from ({x_min},{y_min}) to ({x_max},{y_max})")
+
+    rgb = (to_numpy(rgb.view(-1,3)) * 255).astype(np.uint8)
+    xy = to_numpy(xy)
+    res = np.concatenate([xy,rgb],axis=-1)
+
+    save_data(res,'hash_images/2d_hash_table.mat')
+
 
 
 # img_raw [N,3]
@@ -187,7 +278,7 @@ def save_data(data,save_path):
         np.save(save_path,data)
     else:
         raise NotImplementedError("File format not supported!")
-        
+
 def render_video_images(model,H,W,N,path):
     with tqdm(total=N) as pbar:
         for i in range(N):
@@ -200,5 +291,14 @@ def render_video_images(model,H,W,N,path):
             skimage.io.imsave(os.path.join(path,img_path),img)
             pbar.update(1)
 
+def remove_image_alpha(image_path,save_path):
+    img = io.imread(image_path)
+    img = img[:,:,:3]
+    
+    io.imsave(save_path,img)
+    
+
+
+
 if __name__ == '__main__':
-    pass
+    remove_image_alpha('12.25/img6.png','12.25/res.png')

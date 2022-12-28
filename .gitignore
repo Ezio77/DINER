@@ -142,3 +142,6 @@ dmypy.json
 # model
 *.pth
 *.pt
+
+*.ply
+*.pcd

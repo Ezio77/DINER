@@ -81,12 +81,9 @@ def train_img(opt):
                                remain_raw_resolution = remain_raw_resolution)[0]
 
 
-
     model_input = model_input.to(device)
 
-
     gt = gt.to(device)
-
 
     if model_type == 'HashSiren':
         model = HashSiren_interp(opt = opt,

@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 import math
-from model import Siren,NeRF,WaveNet,MLP,ComplexHashSiren,HashMLP,HashSiren
+from model import Siren,NeRF,WaveNet,MLP,ComplexHashSiren,HashMLP,HashSiren,HashMLP_m
 from dataio import ImageData,oneDimData
 from skimage import io
 from skimage.util import img_as_float
@@ -15,7 +15,6 @@ import time
 import pdb
 # from utils import loss2psnr
 import utils
-from utils import *
 from sklearn.preprocessing import normalize
 from PIL import Image
 from tqdm.autonotebook import tqdm
@@ -68,8 +67,17 @@ def train_img(opt):
                           out_features = out_features,
                           ).to(device = device)
 
+    
+    elif model_type == 'MLP':
+        model = MLP(in_features = input_dim,
+                    out_features = out_features,
+                    hidden_layers = hidden_layers,
+                    hidden_features= hidden_features,
+                    ).to(device = device)
+
+
     elif model_type == 'HashSiren':
-        model = HashSiren(hash_mod = hash_mod,
+        model = HashSiren(
                       hash_table_length = hash_table_length,
                       in_features = input_dim,
                       hidden_features = hidden_features,
@@ -95,18 +103,12 @@ def train_img(opt):
     """
     training process
     """
-
     # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
     # psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
     psnr_logger = np.zeros(int(epochs/steps_til_summary + 1))
 
-    Total_time = 0
-
     with tqdm(total=epochs) as pbar:
-        # for step in range(steps):        
-        
-        max_psnr = 0
-        start_time = time.time()   
+        max_psnr = 0  
         for epoch in range(epochs):
             
             loss = 0
@@ -117,11 +119,8 @@ def train_img(opt):
             loss.backward()
             optimizer.step()
 
-            # 等待GPU完成同步
-            torch.cuda.synchronize()
-
-            Total_time += (time.time() - start_time) / 1000.
-
+            # if (epoch+1) % 1000 == 0:
+            #     utils.save_data((model_output +1) / 2,f'12.15/wo_hash_table_dim_2_epoch_{epoch+1}_res_1200.mat')
 
             psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
@@ -129,23 +128,32 @@ def train_img(opt):
             max_psnr = max(max_psnr,cur_psnr)
 
             if (epoch+1) % 100 == 0:
-                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f,total time %0.6fs" % (epoch+1, loss, cur_psnr,Total_time))
+                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f" % (epoch+1, loss, cur_psnr))
 
             pbar.update(1)
 
     print(f"MAX_PSNR : {max_psnr}")
 
+    utils.save_data(data = (gt+1) / 2,save_path='12.27/raw.mat')
+
+    utils.render_raw_image(model,'12.27/hashMLP_recon.png',[600,600])
+    utils.save_data(data = model.table,save_path='12.27/HashMLP_table.mat')
+
+    utils.render_hash_image(model,[600,600],'12.27/hash_img.png')
+
+    # utils.render_hash_1d_line(model,1000000,'hash_images/channel_3_dim_1_linspace.mat')
+
+    # utils.render_hash_3d_volume(model,[100,100,100],f'3d_hash/channel_3_dim_3_{opt.epochs}epoch_pic29.pcd')
+
+    # data = torch.cat([model.table,model_output],dim=-1)
+    # utils.save_data(data,'hash_images/channel_3_dim_1.mat')
+
+    # utils.render_hash_image(model,render_img_resolution = [1200,1200],save_path='hash_images/channel_3_dim_2.png')
 
     return psnr_logger
 
 if __name__ == "__main__":
 
     opt = HyperParameters()
-    psnr_sum = np.zeros((5,30,10001))
-    for i in range(1,6):
-        opt.input_dim = i
-        for pic_idx in range(1,31):
-            opt.img_path = f'pic/RGB_OR_1200x1200_0{pic_idx:02d}.png'
-            psnr_sum[i-1,pic_idx-1,:] = train_img(opt)
+    train_img(opt)
 
-    scipy.io.savemat('img_exp/rgb.mat', {"data":psnr_sum})

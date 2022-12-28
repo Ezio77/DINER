@@ -227,7 +227,7 @@ class HashSiren(nn.Module):
         super().__init__()
 
         self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
-        
+
         self.net = []
         self.net.append(SineLayer(in_features, hidden_features, 
                                   is_first=True, omega_0=first_omega_0))
@@ -387,7 +387,7 @@ class MLP(nn.Module):
         for i in range(hidden_layers):
             self.net.append(ReluLayer(in_features = hidden_features, out_features = hidden_features,bias = bias))
 
-        self.net.append(ReluLayer(in_features = hidden_features,out_features = out_features,bias = bias))      
+        self.net.append(nn.Linear(hidden_features, out_features))      
 
         self.net = nn.Sequential(*self.net)
 
@@ -441,6 +441,7 @@ class HashMLP(nn.Module):
                 
         super().__init__()
 
+        self.hash_mod = True
         self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
 
         self.net = []
@@ -455,6 +456,44 @@ class HashMLP(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
+
+        if self.hash_mod:
+            output = self.net(self.table)
+        else:
+            output = self.net(coords)
+
+
+        output = torch.clamp(output, min = -1.0,max = 1.0)
+
+        return output
+
+class HashMLP_m(nn.Module):
+    def __init__(self,
+                hash_table_length, 
+                in_features, 
+                hidden_features,
+                hidden_layers,
+                out_features,):
+                
+        super().__init__()
+
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
+        
+        breakpoint()
+
+        self.net = []
+
+        self.net.append(ReluLayer(in_features+1, hidden_features))
+
+        for i in range(hidden_layers):
+            self.net.append(ReluLayer(hidden_features, hidden_features))
+
+        self.net.append(nn.Linear(hidden_features, out_features))
+        # self.net.append(nn.Sigmoid())
+        self.net = nn.Sequential(*self.net)
+
+    def forward(self, coords):
+
         output = self.net(self.table)
         output = torch.clamp(output, min = -1.0,max = 1.0)
 
