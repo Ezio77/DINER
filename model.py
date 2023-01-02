@@ -255,6 +255,53 @@ class HashSiren(nn.Module):
         output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
 
+
+
+class HashSiren_idx(nn.Module):
+    def __init__(self,
+                 hash_table_length, 
+                 in_features, 
+                 hidden_features, 
+                 hidden_layers, 
+                 out_features,
+                 outermost_linear=True, 
+                 first_omega_0=30, 
+                 hidden_omega_0=30.0):
+
+        super().__init__()
+
+        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
+
+        self.net = []
+        self.net.append(SineLayer(in_features, hidden_features, 
+                                  is_first=True, omega_0=first_omega_0))
+
+        for i in range(hidden_layers):
+            self.net.append(SineLayer(hidden_features, hidden_features,
+                                      is_first=False, omega_0=hidden_omega_0))
+
+        if outermost_linear:
+            final_linear = nn.Linear(hidden_features, out_features)
+            
+            with torch.no_grad():
+                final_linear.weight.uniform_(-np.sqrt(6 / hidden_features) / hidden_omega_0,
+                                              np.sqrt(6 / hidden_features) / hidden_omega_0)
+
+            self.net.append(final_linear)
+        else:
+            self.net.append(SineLayer(hidden_features, out_features,
+                                      is_first=False, omega_0=hidden_omega_0))
+        
+        self.net = nn.Sequential(*self.net)
+    
+    def forward(self,start,end):
+        output = self.net(self.table[start:end])
+        output = torch.clamp(output, min = -1.0,max = 1.0)
+
+        return output
+
+
+
 class HashMLP_interp(nn.Module):
     def __init__(self,
                 hash_table_resolution, # [H,W]

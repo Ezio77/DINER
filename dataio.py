@@ -74,6 +74,148 @@ class ImageData(Dataset):
     def __getitem__(self, idx):
         return self.xy, self.rgb
 
+
+
+class ImageData_2d(Dataset):
+    def __init__(self,
+                image_path,
+                sidelength,
+                grayscale,
+                remain_raw_resolution):
+        super().__init__()
+        self.remain_raw_resolution = remain_raw_resolution
+        self.image = io.imread(image_path)
+        self.grayscale = grayscale
+
+        if grayscale and len(self.image.shape) == 3:
+            self.image = rgb2gray(self.image)
+
+        self.image = self.PreProcess(self.image,sidelength)
+        self.xy,self.rgb = self.ImgProcess(self.image)
+        self.rgb = self.extend(self.rgb)
+
+    def extend(self, image):
+        new_image = torch.zeros([image.shape[0],6])
+        new_image[:,0] = image[:,0]
+        new_image[:,1] = image[:,1]
+        new_image[:,2] = image[:,0] * 0.2 + image[:,1] * 0.8
+        new_image[:,3] = image[:,0] * 0.4 + image[:,1] * 0.6
+        new_image[:,4] = image[:,0] * 0.6 + image[:,1] * 0.4
+        new_image[:,5] = image[:,0] * 0.8 + image[:,1] * 0.2
+
+        return new_image
+
+
+    def PreProcess(self,image,sidelength):
+        if self.remain_raw_resolution:
+            transform = Compose([
+                                    ToTensor(),
+                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
+        else:
+            transform = Compose([
+                                    Resize(sidelength),
+                                    ToTensor(),
+                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
+
+
+        image = Image.fromarray(image)
+        image = transform(image)
+        image = image.permute(1, 2, 0)
+
+        return image
+
+    def ImgProcess(self,img):
+
+        H,W,C = img.shape
+
+        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
+        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
+        rgb = img.view(-1,C)
+        xy = torch.cat([x,y],dim = -1)
+        return xy,rgb
+
+    def __len__(self):
+        return self.image.shape[0] * self.image.shape[1]
+
+    def __getitem__(self, idx):
+        return self.xy, self.rgb
+
+
+
+class ImageData_3d(Dataset):
+    def __init__(self,
+                image_path,
+                sidelength,
+                grayscale,
+                remain_raw_resolution):
+        super().__init__()
+        self.remain_raw_resolution = remain_raw_resolution
+        self.image = io.imread(image_path)
+        self.grayscale = grayscale
+
+        if grayscale and len(self.image.shape) == 3:
+            self.image = rgb2gray(self.image)
+
+        self.image = self.PreProcess(self.image,sidelength)
+        self.xy,self.rgb = self.ImgProcess(self.image)
+        self.rgb = self.extend(self.rgb)
+
+    def extend(self, image):
+        new_image = torch.zeros([image.shape[0],7])
+        new_image[:,0] = image[:,0]
+        new_image[:,1] = image[:,1]
+        new_image[:,2] = image[:,2]
+        new_image[:,3] = image[:,0] * 0.1 + image[:,1] * 0.2 + image[:,2] * 0.7
+        new_image[:,4] = image[:,0] * 0.2 + image[:,1] * 0.6 + image[:,2] * 0.2
+        new_image[:,5] = image[:,0] * 0.3 + image[:,1] * 0.4 + image[:,2] * 0.3
+        new_image[:,6] = image[:,0] * 0.8 + image[:,1] * 0.1 + image[:,2] * 0.1
+
+
+
+        return new_image
+
+
+    def PreProcess(self,image,sidelength):
+        if self.remain_raw_resolution:
+            transform = Compose([
+                                    ToTensor(),
+                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
+        else:
+            transform = Compose([
+                                    Resize(sidelength),
+                                    ToTensor(),
+                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
+
+
+        image = Image.fromarray(image)
+        image = transform(image)
+        image = image.permute(1, 2, 0)
+
+        return image
+
+    def ImgProcess(self,img):
+
+        H,W,C = img.shape
+
+        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
+        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
+        rgb = img.view(-1,C)
+        xy = torch.cat([x,y],dim = -1)
+        return xy,rgb
+
+    def __len__(self):
+        return self.image.shape[0] * self.image.shape[1]
+
+    def __getitem__(self, idx):
+        return self.xy, self.rgb
+
+
+
+
+
+
 """
 class ImageData(Dataset):
     def __init__(self,image_path,sidelength,grayscale,image_circle,color_type = "RGB"):

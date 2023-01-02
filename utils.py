@@ -112,6 +112,32 @@ def ImageResize(img_path,sidelength,resized_img_path):
     io.imsave(resized_img_path,image_resized)
 
 
+def render_raw_image_batch(model,save_path,img_resolution):
+    device = torch.device('cuda')
+    H,W = img_resolution
+    # [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+    # x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
+    # y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
+    # xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]
+
+    rgb = torch.zeros((H*W,3))
+
+    stripe_length = 100
+    stripe_numbers = int( H / stripe_length)
+    
+    with torch.no_grad():
+        for idx in range(stripe_numbers):
+            rgb[int(idx * W * stripe_length) : int((idx+1) * W * stripe_length )] =  model(int(idx * W * stripe_length) , int((idx+1) * W * stripe_length ))
+
+    rgb = (rgb.view(H,W,3) + 1) / 2
+    # rgb = (model(0,int(H*W-1)).view(H,W,3) + 1) / 2
+
+    img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+
+    io.imsave(save_path,img)
+
+
+
 
 def render_raw_image(model,save_path,img_resolution):
     device = torch.device('cuda')
@@ -125,12 +151,11 @@ def render_raw_image(model,save_path,img_resolution):
 
     io.imsave(save_path,img)
 
-def render_hash_1d_line(model,render_line_resolution,save_path):
 
+def render_hash_1d_line(model,render_line_resolution,save_path):
     device = torch.device('cuda')
     L = render_line_resolution
     C = 3
-
     x_min,x_max = min(model.table[:,0]).item(),max(model.table[:,0]).item()
 
     x = torch.linspace(x_min,x_max,steps=render_line_resolution,device=device).view(render_line_resolution,1)
