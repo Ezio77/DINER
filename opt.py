@@ -34,6 +34,7 @@ def HyperParameters():
     p.add_argument('--epochs',type=int, default = 3000)
 
     # logging options
+    p.add_argument('--experiment_name', type = str)
     p.add_argument('--save_mod_prefix',type = str)
     p.add_argument('--log_psnr_prefix',type = str)
     p.add_argument('--render_img_prefix',type = str)

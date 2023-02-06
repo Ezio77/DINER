@@ -39,15 +39,6 @@ def train_img(opt):
     input_dim               =       opt.input_dim
     epochs                  =       opt.epochs
     remain_raw_resolution   =       opt.remain_raw_resolution
-    experiment_name         =       opt.experiment_name
-
-    """
-    make directory
-    """
-    pre_dir = "experiment_results"
-    utils.cond_mkdir(os.path.join(pre_dir,experiment_name))
-
-
     """
     check parameters
     """
@@ -112,6 +103,8 @@ def train_img(opt):
     """
     training process
     """
+    # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
+    # psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
     psnr_logger = np.zeros(int(epochs/steps_til_summary + 1))
 
     with tqdm(total=epochs) as pbar:
@@ -126,6 +119,9 @@ def train_img(opt):
             loss.backward()
             optimizer.step()
 
+            # if (epoch+1) % 1000 == 0:
+            #     utils.save_data((model_output +1) / 2,f'12.15/wo_hash_table_dim_2_epoch_{epoch+1}_res_1200.mat')
+
             psnr_logger[int((epoch+1) / steps_til_summary)] = utils.loss2psnr(loss)
 
             cur_psnr = utils.loss2psnr(loss)
@@ -138,9 +134,9 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    # utils.save_data(data = (gt+1) / 2,save_path=os.path.join(pre_dir,experiment_name,"psnr.mat"))
+    # utils.save_data(data = (gt+1) / 2,save_path='12.27/raw.mat')
 
-    # utils.render_raw_image(model,'12.27/hashMLP_recon.png',[600,600])
+    utils.render_raw_image(model,os.path.join('experiment_results','1.17','HashMLP_recon.png'),[1200,1200])
     # utils.save_data(data = model.table,save_path='12.27/HashMLP_table.mat')
 
     # utils.render_hash_image(model,[600,600],'12.27/hash_img.png')
@@ -154,20 +150,29 @@ def train_img(opt):
 
     # utils.render_hash_image(model,render_img_resolution = [1200,1200],save_path='hash_images/channel_3_dim_2.png')
 
-    return psnr_logger
+    return max_psnr,psnr_logger
 
 if __name__ == "__main__":
 
     # opt = HyperParameters()
     # train_img(opt)
 
-    pre_dir = "experiment_results"
-    psnr_log = np.zeros((30,10001))
+    # psnr_logger = np.zeros((30,10001))
+
+    # opt = HyperParameters()
+    # for i in range(1,31):
+    #     opt.img_path = f'pic/RGB_OR_1200x1200_{i:03d}.png'
+    #     psnr_logger[i-1] = train_img(opt)
+    #     utils.save_data(psnr_logger,os.path.join('experiment_results','1.17','HashSiren_w5_results.mat'))
+
+
     opt = HyperParameters()
-    for i in range(1,31):
-        opt.img_path = f'pic/RGB_OR_1200x1200_{i:03d}.png'
-        psnr_log[i-1] = train_img(opt)
-    
-    utils.save_data(psnr_log,os.path.join(pre_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.mat"))
-    utils.save_data(psnr_log,os.path.join(pre_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.npy"))
+    for i in range(10,100):
+        opt.seed = i
+        max_psnr,_ = train_img(opt)
+        if max_psnr > 44:
+            break
+
+
+
 

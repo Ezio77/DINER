@@ -385,7 +385,7 @@ class HashSiren_interp(nn.Module):
         
         self.net = nn.Sequential(*self.net)
     
-
+    
     # coords [N,H*W,2]
     def forward(self, coords):
         # coords.reshape(1,self.opt.sidelength[0],self.opt.sidelength[1],2)

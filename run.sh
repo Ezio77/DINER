@@ -20,4 +20,8 @@
 
 # CUDA_VISIBLE_DEVICES=1 python train_img_3d.py -c config/img.ini
 
-CUDA_VISIBLE_DEVICES=0 python train_pluto.py -c config/pluto.ini
+# CUDA_VISIBLE_DEVICES=0 python train_pluto.py -c config/pluto.ini
+
+# CUDA_VISIBLE_DEVICES=0 python train_img_copy.py -c config/img.ini
+
+CUDA_VISIBLE_DEVICES=0 python train_img.py -c config/img.ini

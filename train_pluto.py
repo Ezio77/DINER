@@ -137,12 +137,15 @@ def train_img(opt):
     training process
     """
     psnr_logger = np.zeros((epochs+1))
-
+    time_logger = np.zeros((epochs+1))
 
 
     with tqdm(total=epochs) as pbar:
         max_psnr = 0
+
+        
         for epoch in range(epochs):
+            start_time = time.time()
             epoch_loss = 0
             for step,idx in enumerate(loader):
                 loss = 0
@@ -157,7 +160,11 @@ def train_img(opt):
 
             epoch_loss /= stripe_numbers
 
-
+            torch.cuda.synchronize()
+            epoch_time = time.time() - start_time
+            
+            if epoch:
+                time_logger[epoch] = time_logger[epoch-1] + epoch_time
 
             cur_psnr = utils.loss2psnr(epoch_loss)
 
@@ -173,17 +180,17 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    utils.save_data(psnr_logger,os.path.join('pluto',f'pluto_psnr_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
+    utils.save_data(psnr_logger,os.path.join('experiment_results','pluto',f'pluto_psnr_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
 
-    utils.render_raw_image_batch(model,os.path.join('pluto',f'pluto_recon_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.png'),[8000,8000])
+    utils.save_data(time_logger,os.path.join('experiment_results','pluto',f'pluto_time_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
+
+    utils.render_raw_image_batch(model,os.path.join('experiment_results','pluto',f'pluto_recon_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.png'),[8000,8000])
 
     return psnr_logger
 
 if __name__ == "__main__":
-
+    
     opt = HyperParameters()
-
     train_img(opt)
-
 
   
