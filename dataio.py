@@ -542,10 +542,7 @@ class MeshSDF(Dataset):
 
         points =utils.to_numpy(utils.get_mgrid(sidelen=self.sidelen,dim = 3,centered=True,include_end=True))
 
-
-        # # 取奇数行
         # points[::2] += np.random.laplace(scale=self.coarse_scale, size=(points.shape[0]//2, points.shape[-1]))
-        # # 取偶数行
         # points[1::2] += np.random.laplace(scale=self.fine_scale, size=(points.shape[0]//2, points.shape[-1]))
 
 

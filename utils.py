@@ -177,7 +177,7 @@ def render_hash_1d_line(model,render_line_resolution,save_path):
 
 
 
-def render_hash_3d_volume(model,render_volume_resolution,save_path):
+def render_hash_3d_volume(model,render_volume_resolution,save_pcd_path,save_data_path):
     opt = HyperParameters()
 
     # save as point cloud
@@ -208,8 +208,6 @@ def render_hash_3d_volume(model,render_volume_resolution,save_path):
         model.hash_mod = False
         rgb = (model(xyz) + 1) / 2
         rgb = rgb.detach().cpu().numpy()
-        
-
         model.hash_mod = True
 
     xyz = to_numpy(xyz)
@@ -220,13 +218,13 @@ def render_hash_3d_volume(model,render_volume_resolution,save_path):
     pcd.points =  o3d.utility.Vector3dVector(xyz)
     pcd.colors =  o3d.utility.Vector3dVector(rgb)
 
-    o3d.io.write_point_cloud(save_path,pcd)
+    o3d.io.write_point_cloud(save_pcd_path,pcd)
 
-    rgb = (rgb * 255.).astype(np.uint8)
+    rgb = np.round(rgb * 255.).astype(np.uint8)
 
     ret = np.concatenate([xyz,rgb],axis = -1)
 
-    save_data(ret,f'3d_hash/result_{opt.epochs}.mat')
+    save_data(ret,save_data_path)
 
 
 # 新实现的hash iamge渲染函数

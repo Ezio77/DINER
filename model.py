@@ -489,7 +489,7 @@ class HashMLP(nn.Module):
         super().__init__()
 
         self.hash_mod = True
-        self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
+        self.table = nn.parameter.Parameter(0 * (torch.rand((hash_table_length,in_features))*2 -1),requires_grad = True)
 
         self.net = []
 
@@ -508,7 +508,6 @@ class HashMLP(nn.Module):
             output = self.net(self.table)
         else:
             output = self.net(coords)
-
 
         output = torch.clamp(output, min = -1.0,max = 1.0)
 

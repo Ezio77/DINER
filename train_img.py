@@ -52,7 +52,7 @@ def train_img(opt):
     check parameters
     """
     if steps % steps_til_summary:
-        raise ValueError("Steps_til_summary could not be devided by steps,please set correct number!")
+        raise ValueError("Steps_til_summary could not be devided by steps!")
 
     device = torch.device('cuda')
     criteon = nn.MSELoss()
@@ -138,29 +138,47 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    # utils.save_data(data = (gt+1) / 2,save_path=os.path.join(pre_dir,experiment_name,"psnr.mat"))
+    with torch.no_grad():
+        utils.render_raw_image(model,os.path.join(pre_dir,experiment_name,'recon_3000epoch','sort_3000epoch_recon.png'),[512,512])
 
-    # utils.render_raw_image(model,'12.27/hashMLP_recon.png',[600,600])
-    # utils.save_data(data = model.table,save_path='12.27/HashMLP_table.mat')
+        # gt = np.round(utils.to_numpy(((gt + 1) / 2 * 255))).astype(np.uint8)
+        # table = utils.to_numpy(model.table)
+        # data = np.concatenate([table,gt],axis=-1)
 
-    # utils.render_hash_image(model,[600,600],'12.27/hash_img.png')
+        # utils.save_data(data,os.path.join(pre_dir,experiment_name,'results','sort_table.mat'))
 
-    # utils.render_hash_1d_line(model,1000000,'hash_images/channel_3_dim_1_linspace.mat')
+        # utils.save_data(psnr_logger,os.path.join(pre_dir,experiment_name,'results','sort_psnr.mat'))
+        # utils.render_hash_3d_volume(model,[300,300,300],os.path.join(pre_dir,experiment_name,'results','sort_pcd.pcd'),os.path.join(pre_dir,experiment_name,'results','sort_hash_feature.mat'))
 
-    # utils.render_hash_3d_volume(model,[100,100,100],f'3d_hash/channel_3_dim_3_{opt.epochs}epoch_pic29.pcd')
 
-    # data = torch.cat([model.table,model_output],dim=-1)
-    # utils.save_data(data,'hash_images/channel_3_dim_1.mat')
+    
+    """
+    utils.save_data(data = (gt+1) / 2,save_path=os.path.join(pre_dir,experiment_name,"psnr.mat"))
 
-    # utils.render_hash_image(model,render_img_resolution = [1200,1200],save_path='hash_images/channel_3_dim_2.png')
+    utils.render_raw_image(model,'12.27/hashMLP_recon.png',[600,600])
+    utils.save_data(data = model.table,save_path='12.27/HashMLP_table.mat')
+
+    utils.render_hash_image(model,[600,600],'12.27/hash_img.png')
+
+    utils.render_hash_1d_line(model,1000000,'hash_images/channel_3_dim_1_linspace.mat')
+
+    utils.render_hash_3d_volume(model,[100,100,100],f'3d_hash/channel_3_dim_3_{opt.epochs}epoch_pic29.pcd')
+
+    data = torch.cat([model.table,model_output],dim=-1)
+    utils.save_data(data,'hash_images/channel_3_dim_1.mat')
+
+    utils.render_hash_image(model,render_img_resolution = [1200,1200],save_path='hash_images/channel_3_dim_2.png')
+    """
+
 
     return psnr_logger
 
 if __name__ == "__main__":
 
-    # opt = HyperParameters()
-    # train_img(opt)
+    opt = HyperParameters()
+    train_img(opt)
 
+    """
     pre_dir = "experiment_results"
     psnr_log = np.zeros((30,10001))
     opt = HyperParameters()
@@ -170,4 +188,4 @@ if __name__ == "__main__":
     
     utils.save_data(psnr_log,os.path.join(pre_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.mat"))
     utils.save_data(psnr_log,os.path.join(pre_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.npy"))
-
+    """

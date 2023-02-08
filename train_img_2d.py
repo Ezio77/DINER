@@ -103,9 +103,7 @@ def train_img(opt):
     """
     training process
     """
-    # iter_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
-    # psnr_logger = np.linspace(0,epochs,int(epochs/steps_til_summary + 1))
-    psnr_logger = np.zeros(epochs)
+    psnr_logger = np.zeros(epochs+1)
 
     # with tqdm(total=epochs) as pbar:
     max_psnr = 0  
@@ -114,24 +112,15 @@ def train_img(opt):
         loss = 0
         model_output = model(model_input)
 
-
         loss = criteon(model_output,gt)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        # if (epoch+1) % 1000 == 0:
-        #     utils.save_data((model_output +1) / 2,f'12.15/wo_hash_table_dim_2_epoch_{epoch+1}_res_1200.mat')
-
-        psnr_logger[epoch] = utils.loss2psnr(loss)
+        psnr_logger[epoch+1] = utils.loss2psnr(loss)
 
         cur_psnr = utils.loss2psnr(loss)
         max_psnr = max(max_psnr,cur_psnr)
-
-            # if (epoch+1) % 100 == 0:
-            #     tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f" % (epoch+1, loss, cur_psnr))
-
-            # pbar.update(1)
 
     print(f"MAX_PSNR : {max_psnr}")
 
@@ -155,10 +144,13 @@ def train_img(opt):
 
 if __name__ == "__main__":
 
+    # opt = HyperParameters()
+    # train_img(opt)
+
+
     with tqdm(total=180) as pbar:
         try:
-            log = np.zeros((30,6,10000))
-
+            log = np.zeros((30,6,10001))
             opt = HyperParameters()
             for i in range(1,31):
                 opt.img_path = f"pic/RGB_OR_1200x1200_{i:03d}.png"
@@ -170,6 +162,6 @@ if __name__ == "__main__":
                     pbar.update(1)
 
         except:
-            utils.save_data(log,'12.29/2_dim.mat')
+            utils.save_data(log,'experiment_results/6d/psnr.mat')
 
-        utils.save_data(log,'12.29/2_dim.mat')
+        utils.save_data(log,'experiment_results/6d/psnr.mat')
