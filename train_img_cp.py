@@ -3,7 +3,7 @@ import numpy as np
 import os
 import torch
 from torch import optim, nn
-from model import Siren,MLP,DinerMLP,DinerSiren
+from model import Siren,MLP,DinerMLP,DinerSiren,Diner_MLP_CP
 from dataio import ImageData
 from skimage import io
 import skimage
@@ -115,6 +115,14 @@ def train_img(opt):
                         hidden_layers = hidden_layers,
                         out_features = out_features).to(device = device)
 
+    elif model_type == 'Diner_MLP_CP':
+        model = Diner_MLP_CP(hash_table_resolution = [1200,1200],
+                            in_features = input_dim,
+                            hidden_features = hidden_features,
+                            hidden_layers = hidden_layers,
+                            out_features = out_features,
+                            n_vectors = 20).to(device = device)
+
     else:
         raise NotImplementedError("Model type not supported!")
         
@@ -146,16 +154,20 @@ def train_img(opt):
             cur_psnr = utils.loss2psnr(loss)
             max_psnr = max(max_psnr,cur_psnr)
 
-            # if (epoch+1) % 1000 == 0:
-            #     with torch.no_grad():
-            #         utils.render_raw_image(model,os.path.join(log_dir,experiment_name,f'recon_{(epoch+1):05d}.png'),[1200,1200])
-            # if (epochs + 1) % steps_til_summary == 0:
-            #     log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
-            #     Logger.write(log_str)
+            if (epoch+1) % 1000 == 0:
+                with torch.no_grad():
+                    utils.render_raw_image(model,os.path.join(log_dir,experiment_name,f'recon_{(epoch+1):05d}.png'),[1200,1200])
+            
+            if (epochs + 1) % steps_til_summary == 0:
+                log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
+                Logger.write(log_str)
 
             pbar.update(1)
 
     print(f"MAX_PSNR : {max_psnr}")
+
+    with torch.no_grad():
+        utils.render_hash_image(model,[1200,1200],os.path.join(log_dir,experiment_name,f'hash_image_{(epoch+1):05d}.png'))
 
     # with torch.no_grad():
     #     utils.render_raw_image(model,os.path.join(log_dir,experiment_name,'recon_3000epoch','sort_3000epoch_recon.png'),[512,512])
@@ -193,8 +205,8 @@ def train_img(opt):
 
 if __name__ == "__main__":
 
-    # opt = HyperParameters()
-    # train_img(opt)
+    opt = HyperParameters()
+    train_img(opt)
 
     """
     log_dir = "experiment_results"
@@ -207,17 +219,18 @@ if __name__ == "__main__":
     utils.save_data(psnr_log,os.path.join(log_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.mat"))
     utils.save_data(psnr_log,os.path.join(log_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.npy"))
     """
-    log_dir = 'log'
-    time_logger = np.zeros((10,30))
-    opt = HyperParameters()
-    for i in range(1,11):
-        opt.input_dim = i
-        for pic_idx in range(1,31):
-            opt.img_path = f'pic/RGB_OR_1200x1200_{pic_idx:03d}.png'
-            time_logger[i-1,pic_idx-1] = train_img(opt)
+    
+    # log_dir = 'log'
+    # time_logger = np.zeros((10,30))
+    # opt = HyperParameters()
+    # for i in range(1,11):
+    #     opt.input_dim = i
+    #     for pic_idx in range(1,31):
+    #         opt.img_path = f'pic/RGB_OR_1200x1200_{pic_idx:03d}.png'
+    #         time_logger[i-1,pic_idx-1] = train_img(opt)
 
-    utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.mat'))
-    utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.npy'))
+    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.mat'))
+    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.npy'))
 
 
 

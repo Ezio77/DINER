@@ -24,10 +24,16 @@
 
 # CUDA_VISIBLE_DEVICES=0 python train_img_copy.py -c config/img.ini
 
-# CUDA_VISIBLE_DEVICES=0 python train_img.py -c config/img.ini
-
-CUDA_VISIBLE_DEVICES=2 python train_img.py -c config/baboon.ini
+# CUDA_VISIBLE_DEVICES=0 python train_img.py -c config/baboon.ini
 
 # CUDA_VISIBLE_DEVICES=0 python train_img_2d.py -c config/6d.ini
 
 # CUDA_VISIBLE_DEVICES=1 python train_img_3d.py -c config/7d.ini
+
+# CUDA_VISIBLE_DEVICES=1 python train_img_cp.py -c config/img_cp.ini
+
+# CUDA_VISIBLE_DEVICES=1 python train_interpolate.py -c config/interpolate.ini
+
+# CUDA_VISIBLE_DEVICES=3 python train_img.py -c config/img.ini
+
+CUDA_VISIBLE_DEVICES=0 python train_mlp.py -c config/img_mlp.ini

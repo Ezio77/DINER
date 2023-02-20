@@ -132,24 +132,31 @@ def render_raw_image_batch(model,save_path,img_resolution):
     rgb = (rgb.view(H,W,3) + 1) / 2
     # rgb = (model(0,int(H*W-1)).view(H,W,3) + 1) / 2
 
-    img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+    img =  np.round(rgb.detach().cpu().numpy() * 255).astype(np.uint8)
 
     io.imsave(save_path,img)
 
 
 
 
-def render_raw_image(model,save_path,img_resolution):
+def render_raw_image(model,save_path,img_resolution,gray = False):
     device = torch.device('cuda')
     H,W = img_resolution
     [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
     x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
     y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
     xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]
-    rgb = (model(xy).view(H,W,3) + 1) / 2
-    img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+
+    if not gray:
+        rgb = (model(xy).view(H,W,3) + 1) / 2
+    else:
+        rgb = (model(xy).view(H,W,1) + 1) / 2
+
+    img =  np.round(rgb.detach().cpu().numpy() * 255).astype(np.uint8)
 
     io.imsave(save_path,img)
+
+
 
 
 def render_hash_1d_line(model,render_line_resolution,save_path):
@@ -163,7 +170,7 @@ def render_hash_1d_line(model,render_line_resolution,save_path):
     model.hash_mod = False
     with torch.no_grad():
         rgb = (model(x) + 1) / 2
-        rgb = (to_numpy(rgb) * 255).astype(np.uint8)
+        rgb = np.round(to_numpy(rgb) * 255).astype(np.uint8)
     model.hash_mod = True
 
     x = to_numpy(x)
@@ -255,7 +262,7 @@ def render_hash_image(model,render_img_resolution,save_path):
     io.imsave(save_path,img)
     print(f"range from ({x_min},{y_min}) to ({x_max},{y_max})")
 
-    rgb = (to_numpy(rgb.view(-1,3)) * 255).astype(np.uint8)
+    rgb =  np.round(to_numpy(rgb.view(-1,3)) * 255).astype(np.uint8)
     xy = to_numpy(xy)
     res = np.concatenate([xy,rgb],axis=-1)
 
@@ -282,7 +289,7 @@ def render_volume(model,hash_table_length,render_volume_resolution = 255):
     xyz = hash_table.astype(int)
     placeHolder = torch.randn(1,2).to(device)
     rgb = (model(placeHolder) + 1) / 2
-    rgb = rgb.detach().cpu().numpy().astype(float)
+    rgb = np.round(rgb.detach().cpu().numpy()).astype(float)
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(xyz)
@@ -310,7 +317,7 @@ def render_video_images(model,H,W,N,path):
             img = to_numpy(model_output)
             img = img.reshape(H,W,-1)
             img_path = f'render_{i:02d}.png'
-            img = ((img + 1.) / 2. * 255.).astype(np.uint8)
+            img = np.round((img + 1.) / 2. * 255.).astype(np.uint8)
             skimage.io.imsave(os.path.join(path,img_path),img)
             pbar.update(1)
 
