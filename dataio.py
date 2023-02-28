@@ -16,7 +16,6 @@ from pykdtree.kdtree import KDTree
 from opt import HyperParameters
 import utils
 
-
 class ImageData(Dataset):
     def __init__(self,
                 image_path,
@@ -136,135 +135,6 @@ class ImageData_linear(Dataset):
     def __getitem__(self, idx):
         return self.xy, self.rgb
 
-
-
-class ImageData_2d(Dataset):
-    def __init__(self,
-                image_path,
-                sidelength,
-                grayscale,
-                remain_raw_resolution):
-        super().__init__()
-        self.remain_raw_resolution = remain_raw_resolution
-        self.image = io.imread(image_path)
-        self.grayscale = grayscale
-
-        if grayscale and len(self.image.shape) == 3:
-            self.image = rgb2gray(self.image)
-
-        self.image = self.PreProcess(self.image,sidelength)
-        self.xy,self.rgb = self.ImgProcess(self.image)
-        self.rgb = self.extend(self.rgb)
-
-    def extend(self, image):
-        new_image = torch.zeros([image.shape[0],6])
-        new_image[:,0] = image[:,0]
-        new_image[:,1] = image[:,1]
-        new_image[:,2] = image[:,0] * 0.2 + image[:,1] * 0.8
-        new_image[:,3] = image[:,0] * 0.4 + image[:,1] * 0.6
-        new_image[:,4] = image[:,0] * 0.6 + image[:,1] * 0.4
-        new_image[:,5] = image[:,0] * 0.8 + image[:,1] * 0.2
-        return new_image
-
-    def PreProcess(self,image,sidelength):
-        if self.remain_raw_resolution:
-            transform = Compose([
-                                    ToTensor(),
-                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
-        else:
-            transform = Compose([
-                                    Resize(sidelength),
-                                    ToTensor(),
-                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
-
-
-        image = Image.fromarray(image)
-        image = transform(image)
-        image = image.permute(1, 2, 0)
-
-        return image
-
-    def ImgProcess(self,img):
-
-        H,W,C = img.shape
-
-        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-        rgb = img.view(-1,C)
-        xy = torch.cat([x,y],dim = -1)
-        return xy,rgb
-
-    def __len__(self):
-        return self.image.shape[0] * self.image.shape[1]
-
-    def __getitem__(self, idx):
-        return self.xy, self.rgb
-
-class ImageData_3d(Dataset):
-    def __init__(self,
-                image_path,
-                sidelength,
-                grayscale,
-                remain_raw_resolution):
-        super().__init__()
-        self.remain_raw_resolution = remain_raw_resolution
-        self.image = io.imread(image_path)
-        self.grayscale = grayscale
-
-        if grayscale and len(self.image.shape) == 3:
-            self.image = rgb2gray(self.image)
-
-        self.image = self.PreProcess(self.image,sidelength)
-        self.xy,self.rgb = self.ImgProcess(self.image)
-        self.rgb = self.extend(self.rgb)
-
-    def extend(self, image):
-        new_image = torch.zeros([image.shape[0],7])
-        new_image[:,0] = image[:,0]
-        new_image[:,1] = image[:,1]
-        new_image[:,2] = image[:,2]
-        new_image[:,3] = image[:,0] * 0.1 + image[:,1] * 0.2 + image[:,2] * 0.7
-        new_image[:,4] = image[:,0] * 0.2 + image[:,1] * 0.6 + image[:,2] * 0.2
-        new_image[:,5] = image[:,0] * 0.3 + image[:,1] * 0.4 + image[:,2] * 0.3
-        new_image[:,6] = image[:,0] * 0.8 + image[:,1] * 0.1 + image[:,2] * 0.1
-        return new_image
-
-    def PreProcess(self,image,sidelength):
-        if self.remain_raw_resolution:
-            transform = Compose([
-                                    ToTensor(),
-                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
-        else:
-            transform = Compose([
-                                    Resize(sidelength),
-                                    ToTensor(),
-                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
-
-
-        image = Image.fromarray(image)
-        image = transform(image)
-        image = image.permute(1, 2, 0)
-
-        return image
-
-    def ImgProcess(self,img):
-
-        H,W,C = img.shape
-
-        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-        rgb = img.view(-1,C)
-        xy = torch.cat([x,y],dim = -1)
-        return xy,rgb
-
-    def __len__(self):
-        return self.image.shape[0] * self.image.shape[1]
-
-    def __getitem__(self, idx):
-        return self.xy, self.rgb
-
 class oneDimData(Dataset):
     def __init__(self,data_length,data_distribution):
         super().__init__()
@@ -345,75 +215,6 @@ class LightFiedData(Dataset):
     def __getitem__(self,idx):
         return self.preprocessing(self.data_path)
 
-"""
-class MeshSDF(Dataset):
-    ''' convert point cloud to SDF '''
-
-    def __init__(self, 
-                 pointcloud_path,
-                 num_samples=30**3,
-                 coarse_scale=1e-1,
-                 fine_scale=1e-3):
-        super().__init__()
-        self.num_samples = num_samples
-        self.pointcloud_path = pointcloud_path
-        self.coarse_scale = coarse_scale
-        self.fine_scale = fine_scale
-
-        self.load_mesh(pointcloud_path)
-
-    def __len__(self):
-        return 10000  # arbitrary
-
-    def load_mesh(self, pointcloud_path):
-        pointcloud = np.genfromtxt(pointcloud_path)
-        self.v = pointcloud[:, :3]
-        self.n = pointcloud[:, 3:]
-
-        n_norm = (np.linalg.norm(self.n, axis=-1)[:, None]) # 求self.n的范数
-        n_norm[n_norm == 0] = 1. # 将n_norm中0的值改为1
-        self.n = self.n / n_norm
-        self.v = self.normalize(self.v)
-        self.kd_tree = KDTree(self.v)
-        print('loaded pc')
-
-    # 归一化到 -0.45 至 0.45之间
-    def normalize(self, coords):
-        coords -= np.mean(coords, axis=0, keepdims=True)
-        coord_max = np.amax(coords)
-        coord_min = np.amin(coords)
-        coords = (coords - coord_min) / (coord_max - coord_min) * 0.9
-        coords -= 0.45
-        return coords
-
-    def sample_surface(self):
-        idx = np.random.randint(0, self.v.shape[0], self.num_samples)
-        points = self.v[idx]
-
-        # 取奇数行
-        points[::2] += np.random.laplace(scale=self.coarse_scale, size=(points.shape[0]//2, points.shape[-1]))
-        # 取偶数行
-        points[1::2] += np.random.laplace(scale=self.fine_scale, size=(points.shape[0]//2, points.shape[-1]))
-
-        # wrap around any points that are sampled out of bounds
-        points[points > 0.5] -= 1
-        points[points < -0.5] += 1
-
-        # use KDTree to get distance to surface and estimate the normal
-        sdf, idx = self.kd_tree.query(points, k=3) # sdf表示到最近的三个点的距离 idx是这三个点的索引值
-        avg_normal = np.mean(self.n[idx], axis=1)
-        sdf = np.sum((points - self.v[idx][:, 0]) * avg_normal, axis=-1)
-        sdf = sdf[..., None]
-
-        return points, sdf
-
-    def __getitem__(self, idx):
-        coords, sdf = self.sample_surface()
-
-        return {'coords': torch.from_numpy(coords).float()}, \
-               {'sdf': torch.from_numpy(sdf).float()}
-"""
-
 class MeshSDF(Dataset):
     ''' convert point cloud to SDF '''
 
@@ -440,14 +241,13 @@ class MeshSDF(Dataset):
         self.v = pointcloud[:, :3]
         self.n = pointcloud[:, 3:]
 
-        n_norm = (np.linalg.norm(self.n, axis=-1)[:, None]) # 求self.n的范数
-        n_norm[n_norm == 0] = 1. # 将n_norm中0的值改为1
+        n_norm = (np.linalg.norm(self.n, axis=-1)[:, None])
+        n_norm[n_norm == 0] = 1.
         self.n = self.n / n_norm
         self.v = self.normalize(self.v)
         self.kd_tree = KDTree(self.v)
         print('loaded pc')
 
-    # 归一化到 -0.45 至 0.45之间
     def normalize(self, coords):
         coords -= np.mean(coords, axis=0, keepdims=True)
         coord_max = np.amax(coords)
@@ -457,21 +257,21 @@ class MeshSDF(Dataset):
         return coords
 
     def sample_surface(self):
-        # idx = np.random.randint(0, self.v.shape[0], self.num_samples)
-        # points = self.v[idx]
+        idx = np.random.randint(0, self.v.shape[0], self.num_samples)
+        points = self.v[idx]
 
         points =utils.to_numpy(utils.get_mgrid(sidelen=self.sidelen,dim = 3,centered=True,include_end=True))
 
-        # points[::2] += np.random.laplace(scale=self.coarse_scale, size=(points.shape[0]//2, points.shape[-1]))
-        # points[1::2] += np.random.laplace(scale=self.fine_scale, size=(points.shape[0]//2, points.shape[-1]))
+        points[::2] += np.random.laplace(scale=self.coarse_scale, size=(points.shape[0]//2, points.shape[-1]))
+        points[1::2] += np.random.laplace(scale=self.fine_scale, size=(points.shape[0]//2, points.shape[-1]))
 
 
         # wrap around any points that are sampled out of bounds
-        # points[points > 0.5] -= 1
-        # points[points < -0.5] += 1
+        points[points > 0.5] -= 1
+        points[points < -0.5] += 1
 
         # use KDTree to get distance to surface and estimate the normal
-        sdf, idx = self.kd_tree.query(points, k=3) # sdf表示到最近的三个点的距离 idx是这三个点的索引值
+        sdf, idx = self.kd_tree.query(points, k=3)
         avg_normal = np.mean(self.n[idx], axis=1)
         sdf = np.sum((points - self.v[idx][:, 0]) * avg_normal, axis=-1)
         sdf = sdf[..., None]
@@ -537,25 +337,6 @@ class PointCloud(Dataset):
 
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
                                                               'normals': torch.from_numpy(normals).float()}
-
-"""
-class Video(Dataset):
-    def __init__(self, path_to_video):
-        super().__init__()
-        if 'npy' in path_to_video:
-            self.vid = np.load(path_to_video)
-        elif 'mp4' in path_to_video:
-            self.vid = skvideo.io.vread(path_to_video,height=272,width=480).astype(np.single) / 255.
-
-        self.shape = self.vid.shape[:-1]
-        self.channels = self.vid.shape[-1]
-
-    def __len__(self):
-        return 1
-
-    def __getitem__(self, idx):
-        return self.vid
-"""
 
 class Video(Dataset):
     def __init__(self, path_to_video):
@@ -670,5 +451,3 @@ class uniform_color_space_3D(Dataset):
         #         "rgb":utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3)}
         return utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3),\
             utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3)
-
-

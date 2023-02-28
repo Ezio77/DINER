@@ -1,17 +1,6 @@
 import torch
-from torch import nn,optim
-from torch.utils.data import Dataset
-import math
+from torch import nn
 import numpy as np
-import os
-from PIL import Image
-from torchvision.transforms import Resize, Compose, ToTensor, Normalize
-from math import pi
-from numpy import mean, std, diag, dot
-import pdb
-import utils
-from scipy import ndimage
-import time
 from opt import HyperParameters
 
 class ReluLayer(nn.Module):
@@ -623,9 +612,7 @@ class WaveNet(nn.Module):
             output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
 
-"""
-Activation Function
-"""
+# Activation Function
 def WaveletActivation(x):
     out = torch.sin(30*x) * torch.exp(- x*x / 2.0)
     return out

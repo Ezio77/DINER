@@ -1,20 +1,14 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import torch
 from torch import optim, nn
 from model import Siren,MLP,DinerMLP,DinerSiren
-from dataio import ImageData,ImageData_linear
-from skimage import io
-import skimage
-import configargparse
-from tensorboardX import SummaryWriter, writer
+from dataio import ImageData
 import time
 import utils
 from sklearn.preprocessing import normalize
 from tqdm.autonotebook import tqdm
-from torch.utils.data import DataLoader
 from opt import HyperParameters
+from loss import relative_l2_loss
 
 
 class Logger:
@@ -30,13 +24,6 @@ class Logger:
         with open(Logger.filename, 'a') as log_file:
             log_file.write(text + '\n')
 
-
-def relative_l2_loss(output,targets):
-    output = (output + 1) / 2.
-    targets = (targets + 1) / 2.
-    relative_l2_error = (output - targets.to(output.dtype))**2 / (output.detach()**2 + 0.01)
-    loss = relative_l2_error.mean()
-    return loss
 
 
 def train_img(opt):
@@ -72,7 +59,7 @@ def train_img(opt):
 
     out_features = 3
 
-    Dataset = ImageData_linear(image_path = img_path,
+    Dataset = ImageData(image_path = img_path,
                                sidelength = sidelength,
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)
@@ -132,17 +119,12 @@ def train_img(opt):
         for epoch in range(epochs):
             time_start = time.time()
 
-            loss_relative = 0
             loss_mse = 0
             model_output = model(model_input)
-
-            # loss = criteon(model_output,gt)
-
-            loss_relative = relative_l2_loss(model_output,gt)
             loss_mse = criteon(model_output,gt)
 
             optimizer.zero_grad()
-            loss_relative.backward()
+            loss_mse.backward()
             optimizer.step()
 
             torch.cuda.synchronize()
