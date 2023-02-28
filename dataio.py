@@ -3,7 +3,6 @@ import os
 import errno
 import matplotlib.colors as colors
 import matplotlib as mpl
-mpl.use('Agg')
 import skimage
 import skimage.filters
 from skimage import io
@@ -11,16 +10,12 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import Resize, Compose, ToTensor, Normalize
-import urllib.request
 import numpy as np
 from skimage.color import rgb2gray
-import pdb
 from pykdtree.kdtree import KDTree
 from opt import HyperParameters
 import utils
-import skvideo
-import skvideo.io
-import skvideo.datasets
+
 
 class ImageData(Dataset):
     def __init__(self,
@@ -36,10 +31,11 @@ class ImageData(Dataset):
         if grayscale and len(self.image.shape) == 3:
             self.image = rgb2gray(self.image)
 
-        self.image = self.PreProcess(self.image,sidelength)
-        self.xy,self.rgb = self.ImgProcess(self.image)
+        self.image = self.normalize(self.image,sidelength)
+        self.xy,self.rgb = self.img_process(self.image)
+        self.shape = self.image.shape
 
-    def PreProcess(self,image,sidelength):
+    def normalize(self,image,sidelength):
         if self.remain_raw_resolution:
             transform = Compose([
                                     ToTensor(),
@@ -50,17 +46,83 @@ class ImageData(Dataset):
                                     ToTensor(),
                                     Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
 
-
         image = Image.fromarray(image)
         image = transform(image)
         image = image.permute(1, 2, 0)
 
         return image
 
-    def ImgProcess(self,img):
-
+    def img_process(self,img):
         H,W,C = img.shape
+        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
+        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
+        rgb = img.view(-1,C)
+        xy = torch.cat([x,y],dim = -1)
+        return xy,rgb
 
+    def __len__(self):
+        return self.image.shape[0] * self.image.shape[1]
+
+    def __getitem__(self, idx):
+        return self.xy, self.rgb
+
+# convert image from RGB to linear
+class ImageData_linear(Dataset):
+    def __init__(self,
+                image_path,
+                sidelength,
+                grayscale,
+                remain_raw_resolution,
+                linear = True):
+        super().__init__()
+        self.remain_raw_resolution = remain_raw_resolution
+        self.image = io.imread(image_path)
+        self.grayscale = grayscale
+        self.linear = linear
+
+        if grayscale and len(self.image.shape) == 3:
+            self.image = rgb2gray(self.image)
+
+        self.image = self.normalize(self.image,sidelength)
+        self.xy,self.rgb = self.img_process(self.image)
+        self.shape = self.image.shape
+
+    def srgb_to_linear(self,img):
+        limit = 0.04045
+        if isinstance(img,np.ndarray):
+            image = np.where(img > limit, np.power((img + 0.055) / 1.055, 2.4), img / 12.92)
+        elif isinstance(img,torch.Tensor):
+            image = torch.where(img > limit, np.power((img + 0.055) / 1.055, 2.4), img / 12.92)
+
+        return image
+
+    def linear_to_srgb(self,img):
+        limit = 0.0031308
+        if isinstance(img,np.ndarray):
+            image = np.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
+        elif isinstance(img,torch.Tensor):
+            image = torch.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
+        return image
+
+    def normalize(self,image,sidelength):
+        if self.remain_raw_resolution:
+            transform = ToTensor()
+        else:
+            transform = Compose([Resize(sidelength),ToTensor()])
+
+        image = Image.fromarray(image)
+        image = transform(image)
+        image = image.permute(1, 2, 0) # range (0,1)
+        
+        image = self.srgb_to_linear(image) # range (0,1)
+
+        image = (image - 0.5) / 0.5 # range (-1,1)
+
+        return image
+
+    def img_process(self,img):
+        H,W,C = img.shape
         [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
         y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
         x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
@@ -102,9 +164,7 @@ class ImageData_2d(Dataset):
         new_image[:,3] = image[:,0] * 0.4 + image[:,1] * 0.6
         new_image[:,4] = image[:,0] * 0.6 + image[:,1] * 0.4
         new_image[:,5] = image[:,0] * 0.8 + image[:,1] * 0.2
-
         return new_image
-
 
     def PreProcess(self,image,sidelength):
         if self.remain_raw_resolution:
@@ -140,8 +200,6 @@ class ImageData_2d(Dataset):
 
     def __getitem__(self, idx):
         return self.xy, self.rgb
-
-
 
 class ImageData_3d(Dataset):
     def __init__(self,
@@ -170,11 +228,7 @@ class ImageData_3d(Dataset):
         new_image[:,4] = image[:,0] * 0.2 + image[:,1] * 0.6 + image[:,2] * 0.2
         new_image[:,5] = image[:,0] * 0.3 + image[:,1] * 0.4 + image[:,2] * 0.3
         new_image[:,6] = image[:,0] * 0.8 + image[:,1] * 0.1 + image[:,2] * 0.1
-
-
-
         return new_image
-
 
     def PreProcess(self,image,sidelength):
         if self.remain_raw_resolution:
@@ -210,138 +264,6 @@ class ImageData_3d(Dataset):
 
     def __getitem__(self, idx):
         return self.xy, self.rgb
-
-
-
-
-
-
-"""
-class ImageData(Dataset):
-    def __init__(self,image_path,sidelength,grayscale,image_circle,color_type = "RGB"):
-        super().__init__()
-        self.image_circle = image_circle
-        self.image = io.imread(image_path)
-        self.grayscale = grayscale
-        self.color_type = color_type
-        if grayscale:
-            self.image = rgb2gray(self.image)
-
-        self.image = self.PreProcess(self.image,sidelength)
-        self.xy,self.rgb = self.ImgProcess(self.image)
-        if image_circle == True:
-            self.xy = self.square2Circle(self.xy)
-
-    def PreProcess(self,image,sidelength):
-        transform = Compose([
-                                    Resize(sidelength),
-                                    ToTensor(),
-                                    Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))])
-
-        if self.color_type == "RGB":
-            image = Image.fromarray(image)
-            image = transform(image)
-            if self.grayscale == False:
-                image = image.permute(1, 2, 0)
-        
-        if self.color_type == "HSV":
-            image = Image.fromarray(image)
-            img_hsv = image.convert("HSV")
-            image = transform(img_hsv)
-            image = image.permute(1, 2, 0)
-
-
-        if self.color_type == "YCbCr":
-            image = Image.fromarray(image)
-            img_hsv = image.convert("YCbCr")
-            image = transform(img_hsv)
-            image = image.permute(1, 2, 0)
-
-        
-
-        return image
-
-    def ImgProcess(self,img):
-        H,W,C = img.shape
-        [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-        y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-        x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-        rgb = img.view(-1,C)          
-        xy = torch.cat([x,y],dim = -1)
-        return xy,rgb
-
-
-    def square2Circle(self,xy):
-        # xy (H*W,2) range (-1,1)
-        pixel_number = xy.shape[0]
-        x = xy[:,0].view(-1,1)
-        y = xy[:,1].view(-1,1)
-
-        # 如果 x 或者 y 的值为0,则不变
-        # mask_0 = (xy[:,0]*xy[:,1] != 0).view(-1,1)
-        mask_0 = x*y != 0
-
-        # 如果 x 的绝对值大于 y
-        # mask_x = (abs(xy[:,0])>=abs(xy[:,1])).view(-1, 1)
-        mask_x = abs(x) >= abs(y)
-        mask_x = mask_x & mask_0
-        mask_y = abs(x) < abs(y)
-        mask_y = mask_y & mask_0
-        # # mask_x = mask_x.repeat(1,2)
-        # xy[mask_x][0] = (xy[mask_x][0] ** 2) / torch.sqrt(xy[mask_x][0] ** 2 + xy[mask_x][1] ** 2)
-        # xy[mask_x][1] = (xy[mask_x][0] * xy[mask_x][1] ) / torch.sqrt(xy[mask_x][0] ** 2 + xy[mask_x][1] ** 2)
-        x[mask_x] = torch.sign(x[mask_x]) * (x[mask_x] ** 2) / torch.sqrt(x[mask_x] ** 2 + y[mask_x] ** 2)
-        y[mask_x] = torch.sign(x[mask_x]) * (x[mask_x] * y[mask_x]) / torch.sqrt(x[mask_x] ** 2 + y[mask_x] ** 2)
-
-
-        # 如果 y 的绝对值大于 x
-        # mask_y = (abs(xy[:,0])<abs(xy[:,1])).view(-1, 1)
-
-        # mask_y = mask_y.repeat(1,2)
-        # xy[mask_y][0] = (xy[mask_y][0] * xy[mask_y][1] ) / torch.sqrt(xy[mask_y][0] ** 2 + xy[mask_y][1] ** 2)
-        # xy[mask_y][1] = (xy[mask_y][1] ** 2) / torch.sqrt(xy[mask_y][0] ** 2 + xy[mask_y][1] ** 2)
-        x[mask_y] = torch.sign(y[mask_y]) * (x[mask_y] * y[mask_y] ) / torch.sqrt(x[mask_y] ** 2 + y[mask_y] ** 2)
-        y[mask_y] = torch.sign(y[mask_y]) * (y[mask_y] ** 2) / torch.sqrt(x[mask_y] ** 2 + y[mask_y] ** 2)
-
-
-        xy = torch.cat([x,y],dim=-1)* 0.1
-
-        # print("*"*100)
-        # print(torch.isnan(xy).int().sum())
-        # print("*"*100)
-        return xy
-        
-    def circle2Square(self,xy):
-        # xy (H*W,2) range (-1,1)
-        pixel_number = xy.shape[0]
-
-        # 如果 x 或者 y 的值为0,则不变
-        mask_0 = (xy[:,0]*xy[:,1] == 0).view(-1,1)
-        mask_0 = mask_0.repeat(1,2)
-        
-        # 如果 x 的绝对值大于 y
-        mask_x = (abs(xy[:,0])>=abs(xy[:,1])).view(-1, 1)
-        mask_x = mask_x.repeat(1,2)
-        xy[mask_x][0] = torch.sqrt(xy[mask_x][0] ** 2 + xy[mask_x][1] ** 2)
-        xy[mask_x][1] = torch.sqrt(xy[mask_x][0] ** 2 + xy[mask_x][1] ** 2) * xy[mask_x][1] / xy[mask_x][0]
-
-        # 如果 y 的绝对值大于 x
-        mask_y = (abs(xy[:,0])<abs(xy[:,1])).view(-1, 1)
-        mask_y = mask_y.repeat(1,2)
-        xy[mask_y][0] = torch.sqrt(xy[mask_y][0] ** 2 + xy[mask_y][1] ** 2) * xy[mask_y][0] / xy[mask_y][1] 
-        xy[mask_y][1] = torch.sqrt(xy[mask_y][0] ** 2 + xy[mask_y][1] ** 2)
-
-        return xy
-
-    
-
-    def __len__(self):
-        return self.image.shape[0] * self.image.shape[1]
-
-    def __getitem__(self, idx):
-        if idx > 0: raise IndexError
-        return self.xy, self.rgb
-"""
 
 class oneDimData(Dataset):
     def __init__(self,data_length,data_distribution):
@@ -378,7 +300,6 @@ class LightFiedData(Dataset):
         if self.grayscale == False:
             image = image.permute(1, 2, 0)
         return image
-
 
     def preprocessing(self,data_path):
         images_path = os.listdir(data_path)
@@ -417,7 +338,6 @@ class LightFiedData(Dataset):
 
 
         return xy,rgb
-
 
     def __len__(self):
         return self.sidelength[0] * self.sidelength[1] * len(os.listdir(self.data_path))
@@ -551,7 +471,6 @@ class MeshSDF(Dataset):
         # points[points < -0.5] += 1
 
         # use KDTree to get distance to surface and estimate the normal
-        breakpoint()
         sdf, idx = self.kd_tree.query(points, k=3) # sdf表示到最近的三个点的距离 idx是这三个点的索引值
         avg_normal = np.mean(self.n[idx], axis=1)
         sdf = np.sum((points - self.v[idx][:, 0]) * avg_normal, axis=-1)
@@ -564,7 +483,6 @@ class MeshSDF(Dataset):
 
         return {'coords': torch.from_numpy(coords).float()}, \
                {'sdf': torch.from_numpy(sdf).float()}
-
 
 class PointCloud(Dataset):
     def __init__(self, pointcloud_path, on_surface_points, keep_aspect_ratio=True):
@@ -646,7 +564,6 @@ class Video(Dataset):
         self.file_list = os.listdir(path_to_video).sort()
         self.num_frames = len(os.listdir(path_to_video))
         self.H,self.W,self.C = skimage.io.imread(os.path.join(path_to_video,self.file_list[0])).shape
-
 
     def process(self):
         all_data = np.zeros((self.num_frames,self.H,self.W,self.C))
@@ -754,20 +671,4 @@ class uniform_color_space_3D(Dataset):
         return utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3),\
             utils.get_mgrid(sidelen=[self.R_len, self.G_len, self.B_len],dim = 3)
 
-if __name__ == '__main__':
-    # xy,rgb = ImageData(image_path = "pic/RGB_OR_1200x1200_039.png",sidelength = [300,300],grayscale = False,image_circle = False)[0]
-    # rgb = rgb.view(300,300,3)
-    # rgb = (rgb + 1) / 2
-    # img = (rgb.numpy() * 255).astype(np.uint8)
-    # io.imsave("render_pic_data/rawpic39_300.png",img)
-
-    # coords,sdf = MeshSDF("sdf/gt_dragon.xyz")[0]
-
-    # data = Video(path_to_video="video_data")[0]
-    # data = Video(path_to_video=skvideo.datasets.bikes())
-
-    coords, data = VideoData('video_data/shaken')[0]
-    breakpoint()
-
-    pass
 

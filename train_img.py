@@ -4,7 +4,7 @@ import os
 import torch
 from torch import optim, nn
 from model import Siren,MLP,DinerMLP,DinerSiren
-from dataio import ImageData
+from dataio import ImageData,ImageData_linear
 from skimage import io
 import skimage
 import configargparse
@@ -31,6 +31,13 @@ class Logger:
             log_file.write(text + '\n')
 
 
+def relative_l2_loss(output,targets):
+    output = (output + 1) / 2.
+    targets = (targets + 1) / 2.
+    relative_l2_error = (output - targets.to(output.dtype))**2 / (output.detach()**2 + 0.01)
+    loss = relative_l2_error.mean()
+    return loss
+
 
 def train_img(opt):
     img_path                =       opt.img_path
@@ -49,16 +56,13 @@ def train_img(opt):
     remain_raw_resolution   =       opt.remain_raw_resolution
     experiment_name         =       opt.experiment_name
 
-
     # make directory
     log_dir = "log"
     utils.cond_mkdir(os.path.join(log_dir,experiment_name))
 
-
-
     # check parameters
     if steps % steps_til_summary:
-        raise ValueError("Steps_til_summary could not be devided by steps!")
+        raise ValueError("steps_til_summary could not be devided by steps!")
 
     # logger
     Logger.filename = os.path.join(log_dir, experiment_name,'log.txt')
@@ -68,7 +72,7 @@ def train_img(opt):
 
     out_features = 3
 
-    Dataset = ImageData(image_path = img_path,
+    Dataset = ImageData_linear(image_path = img_path,
                                sidelength = sidelength,
                                grayscale = grayscale,
                                remain_raw_resolution = remain_raw_resolution)
@@ -122,102 +126,61 @@ def train_img(opt):
 
 
     # training process
-    psnr_epoch = np.zeros(epochs + 1)
-
     with tqdm(total=epochs) as pbar:
         max_psnr = 0
         time_cost = 0
         for epoch in range(epochs):
             time_start = time.time()
-            
-            loss = 0
+
+            loss_relative = 0
+            loss_mse = 0
             model_output = model(model_input)
 
-            loss = criteon(model_output,gt)
+            # loss = criteon(model_output,gt)
+
+            loss_relative = relative_l2_loss(model_output,gt)
+            loss_mse = criteon(model_output,gt)
+
             optimizer.zero_grad()
-            loss.backward()
+            loss_relative.backward()
             optimizer.step()
 
             torch.cuda.synchronize()
             time_cost += time.time() - time_start
 
-            psnr_epoch[epoch+1] = utils.loss2psnr(loss)
-
-            cur_psnr = utils.loss2psnr(loss)
+            cur_psnr = utils.loss2psnr(loss_mse)
             max_psnr = max(max_psnr,cur_psnr)
 
-            # if (epoch+1) % 1000 == 0:
-            #     with torch.no_grad():
-            #         utils.render_raw_image(model,os.path.join(log_dir,experiment_name,f'recon_{(epoch+1):05d}.png'),[1200,1200])
-            # if (epochs + 1) % steps_til_summary == 0:
-            #     log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
-            #     Logger.write(log_str)
+            if (epochs + 1) % steps_til_summary == 0:
+                log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss_mse.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
+                Logger.write(log_str)
 
             pbar.update(1)
+            
+    utils.render_raw_image(model,os.path.join(log_dir,experiment_name,'recon.png'),[1200,1200],linear = True)
 
-    print(f"MAX_PSNR : {max_psnr}")
+    recon_psnr = utils.calculate_psnr(os.path.join(log_dir,experiment_name,'recon.png'),img_path)
 
-    # with torch.no_grad():
-    #     utils.render_raw_image(model,os.path.join(log_dir,experiment_name,'recon_3000epoch','sort_3000epoch_recon.png'),[512,512])
-
-        # gt = np.round(utils.to_numpy(((gt + 1) / 2 * 255))).astype(np.uint8)
-        # table = utils.to_numpy(model.table)
-        # data = np.concatenate([table,gt],axis=-1)
-
-        # utils.save_data(data,os.path.join(log_dir,experiment_name,'results','sort_table.mat'))
-
-        # utils.save_data(psnr_logger,os.path.join(log_dir,experiment_name,'results','sort_psnr.mat'))
-        # utils.render_hash_3d_volume(model,[300,300,300],os.path.join(log_dir,experiment_name,'results','sort_pcd.pcd'),os.path.join(log_dir,experiment_name,'results','sort_hash_feature.mat'))
-
-
-    
-    """
-    utils.save_data(data = (gt+1) / 2,save_path=os.path.join(log_dir,experiment_name,"psnr.mat"))
-
-    utils.render_raw_image(model,'12.27/hashMLP_recon.png',[600,600])
-    utils.save_data(data = model.table,save_path='12.27/HashMLP_table.mat')
-
-    utils.render_hash_image(model,[600,600],'12.27/hash_img.png')
-
-    utils.render_hash_1d_line(model,1000000,'hash_images/channel_3_dim_1_linspace.mat')
-
-    utils.render_hash_3d_volume(model,[100,100,100],f'3d_hash/channel_3_dim_3_{opt.epochs}epoch_pic29.pcd')
-
-    data = torch.cat([model.table,model_output],dim=-1)
-    utils.save_data(data,'hash_images/channel_3_dim_1.mat')
-
-    utils.render_hash_image(model,render_img_resolution = [1200,1200],save_path='hash_images/channel_3_dim_2.png')
-    """
+    print(f"Reconstruction PSNR: {recon_psnr:.2f}")
 
     return time_cost
 
 if __name__ == "__main__":
 
+    opt = HyperParameters()
+    train_img(opt)
+
+    # log_dir = 'log'
+    # time_logger = np.zeros((10,30))
     # opt = HyperParameters()
-    # train_img(opt)
+    # for i in range(1,11):
+    #     opt.input_dim = i
+    #     for pic_idx in range(1,31):
+    #         opt.img_path = f'pic/RGB_OR_1200x1200_{pic_idx:03d}.png'
+    #         time_logger[i-1,pic_idx-1] = train_img(opt)
 
-    """
-    log_dir = "experiment_results"
-    psnr_log = np.zeros((30,10001))
-    opt = HyperParameters()
-    for i in range(1,31):
-        opt.img_path = f'pic/RGB_OR_1200x1200_{i:03d}.png'
-        psnr_log[i-1] = train_img(opt)
-    
-    utils.save_data(psnr_log,os.path.join(log_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.mat"))
-    utils.save_data(psnr_log,os.path.join(log_dir,opt.experiment_name,f"diner_mlp_tableLength_{opt.input_dim:02d}_seed_{opt.seed:03d}.npy"))
-    """
-    log_dir = 'log'
-    time_logger = np.zeros((10,30))
-    opt = HyperParameters()
-    for i in range(1,11):
-        opt.input_dim = i
-        for pic_idx in range(1,31):
-            opt.img_path = f'pic/RGB_OR_1200x1200_{pic_idx:03d}.png'
-            time_logger[i-1,pic_idx-1] = train_img(opt)
-
-    utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.mat'))
-    utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.npy'))
+    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.mat'))
+    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.npy'))
 
 
 

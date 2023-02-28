@@ -34,6 +34,6 @@
 
 # CUDA_VISIBLE_DEVICES=1 python train_interpolate.py -c config/interpolate.ini
 
-# CUDA_VISIBLE_DEVICES=3 python train_img.py -c config/img.ini
+CUDA_VISIBLE_DEVICES=0 python train_img.py -c config/img.ini
 
-CUDA_VISIBLE_DEVICES=0 python train_mlp.py -c config/img_mlp.ini
+# CUDA_VISIBLE_DEVICES=0 python train_mlp.py -c config/img_mlp.ini

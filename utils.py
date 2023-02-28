@@ -17,22 +17,18 @@ import open3d as o3d
 import scipy.io
 from opt import HyperParameters
 from tqdm.autonotebook import tqdm
-import pcl
-
+import torchvision.transforms.functional as F
+from PIL import Image
 
 def to_numpy(x):
     return x.detach().cpu().numpy()
-
 
 def cond_mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-
-
 def loss2psnr(loss):
     return 10*torch.log10(4 /loss)
-
 
 def create_gif(image_list, gif_name, duration=0.35):
     frames = []
@@ -40,7 +36,6 @@ def create_gif(image_list, gif_name, duration=0.35):
         frames.append(imageio.imread(image_name))
     imageio.mimsave(gif_name, frames, 'GIF', duration=duration)
     return
-
 
 def tensor2grid(inputTensor):
     # input (N,2)
@@ -55,8 +50,6 @@ def tensor2grid(inputTensor):
 
     return grid
 
-
-
 def gifMaker():
     orgin = 'gif'         #首先设置图像文件路径
     files = os.listdir(orgin)       #获取图像序列
@@ -69,9 +62,6 @@ def gifMaker():
     gif_name = 'N0_L4_F64.gif'  #设置动态图的名字
     duration = 0.2
     create_gif(image_list, gif_name, duration)   #创建动态图
-
-
-
 
 def interp2(x,y,img,xi,yi):
     """
@@ -105,13 +95,12 @@ def interp2(x,y,img,xi,yi):
     return_img = _interpolation(x,y,m,n,mm,nn,zxi,zyi,alpha,beta,img,return_img)
     return return_img
 
-
 def ImageResize(img_path,sidelength,resized_img_path):
     img = io.imread(img_path)
     image_resized = skimage.transform.resize(img,sidelength)
     io.imsave(resized_img_path,image_resized)
 
-
+@torch.no_grad()
 def render_raw_image_batch(model,save_path,img_resolution):
     device = torch.device('cuda')
     H,W = img_resolution
@@ -136,10 +125,8 @@ def render_raw_image_batch(model,save_path,img_resolution):
 
     io.imsave(save_path,img)
 
-
-
-
-def render_raw_image(model,save_path,img_resolution,gray = False):
+@torch.no_grad()
+def render_raw_image(model,save_path,img_resolution,gray = False,linear = False):
     device = torch.device('cuda')
     H,W = img_resolution
     [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
@@ -152,13 +139,14 @@ def render_raw_image(model,save_path,img_resolution,gray = False):
     else:
         rgb = (model(xy).view(H,W,1) + 1) / 2
 
-    img =  np.round(rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+    if not linear:
+        img =  np.round(rgb.detach().cpu().numpy() * 255).astype(np.uint8)
+    else:
+        img = (linear_to_srgb(rgb.detach().cpu().numpy()) * 255).astype(np.uint8)
 
     io.imsave(save_path,img)
 
-
-
-
+@torch.no_grad()
 def render_hash_1d_line(model,render_line_resolution,save_path):
     device = torch.device('cuda')
     L = render_line_resolution
@@ -179,11 +167,7 @@ def render_hash_1d_line(model,render_line_resolution,save_path):
 
     save_data(data,save_path)
 
-
-
-
-
-
+@torch.no_grad()
 def render_hash_3d_volume(model,render_volume_resolution,save_pcd_path,save_data_path):
     opt = HyperParameters()
 
@@ -233,8 +217,7 @@ def render_hash_3d_volume(model,render_volume_resolution,save_pcd_path,save_data
 
     save_data(ret,save_data_path)
 
-
-# 新实现的hash iamge渲染函数
+@torch.no_grad()
 def render_hash_image(model,render_img_resolution,save_path):
     device = torch.device('cuda')
     H = render_img_resolution[0]
@@ -268,10 +251,9 @@ def render_hash_image(model,render_img_resolution,save_path):
 
     save_data(res,'hash_images/2d_hash_table.mat')
 
-
-
 # img_raw [N,3]
 # img_const [N,3]
+@torch.no_grad()
 def render_error_image(img_raw,img_const,sidelength,save_path):
     img_error = abs(to_numpy(img_raw) - to_numpy(img_const))
     img_error = img_error.reshape((sidelength[0],sidelength[1],3))*255
@@ -279,7 +261,7 @@ def render_error_image(img_raw,img_const,sidelength,save_path):
 
     io.imsave(save_path,img_error)
 
-
+@torch.no_grad()
 def render_volume(model,hash_table_length,render_volume_resolution = 255):
     device = torch.device('cuda')
     # pointCloud = np.zeros(hash_table_length,6) # x,y,z,r,g,b
@@ -298,6 +280,7 @@ def render_volume(model,hash_table_length,render_volume_resolution = 255):
 
     return pcd
 
+@torch.no_grad()
 def save_data(data,save_path):
     # save_mod : 'mat', 'npy'
     if isinstance(data,torch.Tensor):
@@ -309,6 +292,7 @@ def save_data(data,save_path):
     else:
         raise NotImplementedError("File format not supported!")
 
+@torch.no_grad()
 def render_video_images(model,H,W,N,path):
     with tqdm(total=N) as pbar:
         for i in range(N):
@@ -326,9 +310,34 @@ def remove_image_alpha(image_path,save_path):
     img = img[:,:,:3]
     
     io.imsave(save_path,img)
-    
+
+def srgb_to_linear(img):
+    limit = 0.04045
+    if isinstance(img,np.ndarray):
+        image = np.where(img > limit, np.power((img + 0.055) / 1.055, 2.4), img / 12.92)
+    elif isinstance(img,torch.Tensor):
+        image = torch.where(img > limit, np.power((img + 0.055) / 1.055, 2.4), img / 12.92)
+
+    return image
+
+def calculate_psnr(image_path1, image_path2):
+    image1 = F.to_tensor(Image.open(image_path1))
+    image2 = F.to_tensor(Image.open(image_path2))
+
+    mse = torch.mean((image1 - image2) ** 2)
+
+    psnr = 10 * torch.log10(1 / mse)
+
+    return psnr.item()
 
 
 
-if __name__ == '__main__':
-    remove_image_alpha('12.25/img6.png','12.25/res.png')
+def linear_to_srgb(img):
+    limit = 0.0031308
+    if isinstance(img,np.ndarray):
+        image = np.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
+    elif isinstance(img,torch.Tensor):
+        image = torch.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
+    return image
+
+
