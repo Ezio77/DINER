@@ -129,9 +129,6 @@ dmypy.json
 .pyre/
 
 
-
-
-
 # data
 *.png
 *.jpg
@@ -145,3 +142,11 @@ dmypy.json
 
 *.ply
 *.pcd
+
+# directory
+log/
+pic/
+experiment_results/
+trainer/
+rebuttal/
+config_new/
