@@ -170,17 +170,5 @@ if __name__ == "__main__":
     opt = HyperParameters()
     train_img(opt)
 
-    # log_dir = 'log'
-    # time_logger = np.zeros((10,30))
-    # opt = HyperParameters()
-    # for i in range(1,11):
-    #     opt.input_dim = i
-    #     for pic_idx in range(1,31):
-    #         opt.img_path = f'pic/RGB_OR_1200x1200_{pic_idx:03d}.png'
-    #         time_logger[i-1,pic_idx-1] = train_img(opt)
-
-    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.mat'))
-    # utils.save_data(time_logger,os.path.join(log_dir,opt.experiment_name,'time.npy'))
-
 
 

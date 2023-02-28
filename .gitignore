@@ -139,7 +139,6 @@ dmypy.json
 # model
 *.pth
 *.pt
-
 *.ply
 *.pcd
 
@@ -150,3 +149,9 @@ experiment_results/
 trainer/
 rebuttal/
 config_new/
+video_data/
+video_exp/
+
+# file 
+dataio_ngp.py
+test.py
