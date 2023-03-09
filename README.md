@@ -26,15 +26,16 @@ python train_img.py --config ./config/img.ini
 
 After the image representation has been trained, the results of the image will appear in the `log/<experiment_name>` folder, where `<experiment_name>` is the subdirectory in the `log` folder corresponding to the particular training run.
 
-
+Inverse optimizaion coming soon ...
 
 ## Citation
 
 ```
-@article{xie2022diner,
-    title={DINER: Disorder-Invariant Implicit Neural Representation},
-    author={Xie, Shaowen and Zhu, Hao and Liu, Zhen and Zhang, Qi and Zhou, You and Cao, Xun and Ma, Zhan},
-    journal={arXiv preprint arXiv:2211.07871},
-    year={2022}
+@inproceedings{xie2023diner,
+  author = {Xie, Shaowen and Zhu, Hao and Liu, Zhen and Zhang, Qi and Zhou, You and Cao, Xun and Ma, Zhan},
+  title = {DINER: Disorder-Invariant Implicit Neural Representation},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={1--10},
+  year = {2023}
 }
 ```
