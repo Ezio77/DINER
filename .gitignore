@@ -155,3 +155,4 @@ video_exp/
 # file 
 dataio_ngp.py
 test.py
+!imgs/full_res_hashmapping.png
