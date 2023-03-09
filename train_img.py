@@ -151,4 +151,3 @@ if __name__ == "__main__":
 
     opt = HyperParameters()
     train_img(opt)
-
