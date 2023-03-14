@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import optim, nn
-from model import Siren,MLP,DinerMLP,DinerSiren
+from model import Siren,MLP,DinerMLP_idx,DinerSiren_idx
 from dataio import ImageData
 import time
 import utils
@@ -9,7 +9,7 @@ from sklearn.preprocessing import normalize
 from tqdm.autonotebook import tqdm
 from opt import HyperParameters
 from loss import relative_l2_loss
-
+from torch.utils.data import DataLoader
 
 class Logger:
     filename = None
@@ -23,7 +23,6 @@ class Logger:
     def write_file(text):
         with open(Logger.filename, 'a') as log_file:
             log_file.write(text + '\n')
-
 
 
 def train_img(opt):
@@ -50,10 +49,10 @@ def train_img(opt):
     # check parameters
     if steps % steps_til_summary:
         raise ValueError("steps_til_summary could not be devided by steps!")
-
+    
     # logger
     Logger.filename = os.path.join(log_dir, experiment_name,'log.txt')
-
+    
     device = torch.device('cuda')
     criteon = nn.MSELoss()
 
@@ -87,7 +86,7 @@ def train_img(opt):
 
 
     elif model_type == 'DinerSiren':
-        model = DinerSiren(
+        model = DinerSiren_idx(
                       hash_table_length = hash_table_length,
                       in_features = input_dim,
                       hidden_features = hidden_features,
@@ -98,7 +97,7 @@ def train_img(opt):
                       hidden_omega_0 = hidden_omega_0).to(device = device)
 
     elif model_type == 'DinerMLP':
-        model = DinerMLP(
+        model = DinerMLP_idx(
                         hash_table_length = hash_table_length, 
                         in_features = input_dim, 
                         hidden_features = hidden_features,
@@ -106,9 +105,22 @@ def train_img(opt):
                         out_features = out_features).to(device = device)
 
     else:
-        raise NotImplementedError("Model type not supported!")
-        
+        raise NotImplementedError("Model_type not supported!")
+
+
+
     optimizer = optim.Adam(lr = lr,params = model.parameters())
+
+
+    stripe_length = 800
+    stripe_numbers = int(sidelength[0] / stripe_length)
+    indexes = torch.linspace(0,stripe_numbers-1,stripe_numbers)
+
+    loader = DataLoader(
+        dataset = indexes,
+        batch_size = 1,
+        shuffle = True,
+        num_workers = 8)
 
 
     # training process
@@ -117,36 +129,48 @@ def train_img(opt):
         time_cost = 0
         for epoch in range(epochs):
             time_start = time.time()
+            epoch_loss = 0
+            for step,idx in enumerate(loader):
+                loss = 0
+                model_output = model(int(idx * sidelength[1] * stripe_length) , int((idx+1) * sidelength[1] * stripe_length ))
 
-            loss_mse = 0
-            model_output = model(model_input)
-            loss_mse = criteon(model_output,gt)
+                loss = criteon(model_output,gt[int(idx * sidelength[1] * stripe_length) : int((idx+1) * sidelength[1] * stripe_length ),:])
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-            optimizer.zero_grad()
-            loss_mse.backward()
-            optimizer.step()
+                epoch_loss += loss
+
+            epoch_loss /= stripe_numbers
 
             torch.cuda.synchronize()
-            time_cost += time.time() - time_start
+            time_cost = time.time() - time_start
+            cur_psnr = utils.loss2psnr(epoch_loss)
 
-            cur_psnr = utils.loss2psnr(loss_mse)
-            max_psnr = max(max_psnr,cur_psnr)
-
-            if (epoch + 1) % steps_til_summary == 0:
-                log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss_mse.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
+            if (epoch+1) % steps_til_summary == 0:
+                log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {epoch_loss.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
                 Logger.write(log_str)
 
+            max_psnr = max(max_psnr,cur_psnr)
+
+            if (epoch+1) % 100 == 0:
+                tqdm.write("Step %d, Total loss %0.6f, PSNR %0.2f" % (epoch+1, epoch_loss, cur_psnr))
+
             pbar.update(1)
-            
-    utils.render_raw_image(model,os.path.join(log_dir,experiment_name,'recon.png'),[1200,1200],linear = False)
 
-    recon_psnr = utils.calculate_psnr(os.path.join(log_dir,experiment_name,'recon.png'),img_path)
+    print(f"MAX_PSNR : {max_psnr}")
 
-    print(f"Reconstruction PSNR: {recon_psnr:.2f}")
+    utils.save_data(psnr_logger,os.path.join('experiment_results','pluto',f'pluto_psnr_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
+
+    utils.save_data(time_logger,os.path.join('experiment_results','pluto',f'pluto_time_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
+
+    utils.render_raw_image_batch(model,os.path.join('experiment_results','pluto',f'pluto_recon_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.png'),[8000,8000])
 
     return
 
 if __name__ == "__main__":
-
+    
     opt = HyperParameters()
     train_img(opt)
+
+  
