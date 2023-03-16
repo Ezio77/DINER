@@ -112,7 +112,7 @@ def train_img(opt):
     optimizer = optim.Adam(lr = lr,params = model.parameters())
 
 
-    stripe_length = 800
+    stripe_length = 2000
     stripe_numbers = int(sidelength[0] / stripe_length)
     indexes = torch.linspace(0,stripe_numbers-1,stripe_numbers)
 
@@ -144,7 +144,7 @@ def train_img(opt):
             epoch_loss /= stripe_numbers
 
             torch.cuda.synchronize()
-            time_cost = time.time() - time_start
+            time_cost += time.time() - time_start
             cur_psnr = utils.loss2psnr(epoch_loss)
 
             if (epoch+1) % steps_til_summary == 0:
@@ -160,11 +160,11 @@ def train_img(opt):
 
     print(f"MAX_PSNR : {max_psnr}")
 
-    utils.save_data(psnr_logger,os.path.join('experiment_results','pluto',f'pluto_psnr_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
-
-    utils.save_data(time_logger,os.path.join('experiment_results','pluto',f'pluto_time_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.mat'))
-
     utils.render_raw_image_batch(model,os.path.join('experiment_results','pluto',f'pluto_recon_method{model_type}_epoch{epochs:05d}_tablelength{input_dim:02d}.png'),[8000,8000])
+
+    recon_psnr = utils.calculate_psnr(os.path.join(log_dir,experiment_name,'recon.png'),img_path)
+
+    print(f"Reconstruction PSNR: {recon_psnr:.2f}")
 
     return
 
