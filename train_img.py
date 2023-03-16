@@ -65,7 +65,6 @@ def train_img(opt):
                                remain_raw_resolution = remain_raw_resolution)
     model_input,gt = Dataset[0]
 
-
     model_input = model_input.to(device)
     gt = gt.to(device)
 
@@ -133,7 +132,7 @@ def train_img(opt):
             cur_psnr = utils.loss2psnr(loss_mse)
             max_psnr = max(max_psnr,cur_psnr)
 
-            if (epochs + 1) % steps_til_summary == 0:
+            if (epoch + 1) % steps_til_summary == 0:
                 log_str = f"[TRAIN] Epoch: {epoch+1} Loss: {loss_mse.item()} PSNR: {cur_psnr} Time: {round(time_cost, 2)}"
                 Logger.write(log_str)
 
@@ -145,7 +144,7 @@ def train_img(opt):
 
     print(f"Reconstruction PSNR: {recon_psnr:.2f}")
 
-    return time_cost
+    return
 
 if __name__ == "__main__":
 

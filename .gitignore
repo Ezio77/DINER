@@ -159,3 +159,5 @@ video_exp/
 dataio_ngp.py
 test.py
 !imgs/full_res_hashmapping.png
+train_pluto.py
+config/pluto.ini
