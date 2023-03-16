@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# 
+data/simulation_fox_baboon_400x400/cal_psnr.py
+
 # C extensions
 *.so
 
