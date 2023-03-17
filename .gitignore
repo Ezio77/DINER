@@ -137,11 +137,11 @@ dmypy.json
 
 
 # data
-*.png
-*.jpg
-*.xyz
-*.mat
-*.npy
+# *.png
+# *.jpg
+# *.xyz
+# *.mat
+# *.npy
 
 # model
 *.pth
