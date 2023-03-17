@@ -619,3 +619,34 @@ def WaveletActivation(x):
 
 def SincActivation(x):
     return torch.sin(x) / torch.abs(x)
+
+
+class HashSiren_Lessless(nn.Module):
+    def __init__(self, hash_table_length, input_dim, hidden_features=64, hidden_layers=2, out_features=1, outermost_linear=True, 
+                 first_omega_0=30., hidden_omega_0=30.):
+        super(HashSiren_Lessless, self).__init__()
+        
+        self.model_amp = DinerSiren(
+                            hash_table_length = hash_table_length,
+                            in_features = input_dim,
+                            hidden_features = hidden_features,
+                            hidden_layers = hidden_layers,
+                            out_features = out_features,
+                            outermost_linear = outermost_linear,
+                            first_omega_0 = first_omega_0,
+                            hidden_omega_0 = hidden_omega_0)
+            
+        self.model_phs = DinerSiren(
+                            hash_table_length = hash_table_length,
+                            in_features = input_dim,
+                            hidden_features = hidden_features,
+                            hidden_layers = hidden_layers,
+                            out_features = out_features,
+                            outermost_linear = outermost_linear,
+                            first_omega_0 = first_omega_0,
+                            hidden_omega_0 = hidden_omega_0)
+                
+    def forward(self):
+        amp = (self.model_amp(None) + 1) / 2
+        phs = (self.model_phs(None) + 1) / 2
+        return amp, phs

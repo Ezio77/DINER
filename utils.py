@@ -295,4 +295,3 @@ def linear_to_srgb(img):
         image = torch.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
     return image
 
-
