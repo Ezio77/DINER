@@ -26,7 +26,10 @@ python train_img.py --config ./config/img.ini
 
 After the image representation has been trained, the results of the image will appear in the `log/<experiment_name>` folder, where `<experiment_name>` is the subdirectory in the `log` folder corresponding to the particular training run.
 
-Inverse optimizaion coming soon ...
+#### Lensless imaging
+```
+python train_lensless.py --config ./config/lensless.ini
+```
 
 ## Citation
 

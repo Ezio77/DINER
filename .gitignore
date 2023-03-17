@@ -163,3 +163,4 @@ test.py
 !imgs/full_res_hashmapping.png
 train_pluto.py
 config/pluto.ini
+!data
