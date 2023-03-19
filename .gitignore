@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# lensless
+**/cal_psnr.py
+log/
+__result_figures__/
+!data/simulation_fox_baboon_400x400/*.png
+!data/simulation_fox_baboon_400x400/*.mat
+
 # C extensions
 *.so
 
@@ -130,11 +137,11 @@ dmypy.json
 
 
 # data
-*.png
-*.jpg
-*.xyz
-*.mat
-*.npy
+# *.png
+# *.jpg
+# *.xyz
+# *.mat
+# *.npy
 
 # model
 *.pth
