@@ -251,10 +251,8 @@ def srgb_to_linear(img):
 def calculate_psnr(image_path1, image_path2):
     image1 = F.to_tensor(Image.open(image_path1))
     image2 = F.to_tensor(Image.open(image_path2))
-
     mse = torch.mean((image1 - image2) ** 2)
     psnr = 10 * torch.log10(1 / mse)
-
     return psnr.item()
 
 
