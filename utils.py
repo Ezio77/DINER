@@ -38,7 +38,7 @@ def tensor2grid(inputTensor):
     grid = torch.cat([x[...,None],y[...,None]],dim = -1)[None,...]
     return grid
 
-def gifMaker():
+def gifMaker(gif_name):
     orgin = 'gif'
     files = os.listdir(orgin)
     files.sort()
@@ -46,8 +46,7 @@ def gifMaker():
     for file in files:
         path = os.path.join(orgin, file)
         image_list.append(path)
-    print(image_list)  
-    gif_name = 'N0_L4_F64.gif'
+    print(image_list)
     duration = 0.2
     create_gif(image_list, gif_name, duration)
 
@@ -59,13 +58,7 @@ def ImageResize(img_path,sidelength,resized_img_path):
 
 @torch.no_grad()
 def render_raw_image_batch(model,save_path,img_resolution):
-    device = torch.device('cuda')
     H,W = img_resolution
-    # [x, y] = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
-    # x = (x.contiguous().view(-1, 1) / W - 0.5) / 0.5
-    # y = (y.contiguous().view(-1, 1) / H - 0.5) / 0.5
-    # xy = torch.cat([x, y],dim = -1).to(device = device) # xy shape [H*W,2]
-
     rgb = torch.zeros((H*W,3))
 
     stripe_length = 100
@@ -76,10 +69,7 @@ def render_raw_image_batch(model,save_path,img_resolution):
             rgb[int(idx * W * stripe_length) : int((idx+1) * W * stripe_length )] =  model(int(idx * W * stripe_length) , int((idx+1) * W * stripe_length ))
 
     rgb = (rgb.view(H,W,3) + 1) / 2
-    # rgb = (model(0,int(H*W-1)).view(H,W,3) + 1) / 2
-
     img =  np.round(rgb.detach().cpu().numpy() * 255).astype(np.uint8)
-
     io.imsave(save_path,img)
 
 @torch.no_grad()
@@ -126,9 +116,6 @@ def render_hash_1d_line(model,render_line_resolution,save_path):
 
 @torch.no_grad()
 def render_hash_3d_volume(model,render_volume_resolution,save_pcd_path,save_data_path):
-    opt = HyperParameters()
-
-    # save as point cloud
     device = torch.device('cuda')
     H = render_volume_resolution[0]
     W = render_volume_resolution[1]
@@ -141,15 +128,12 @@ def render_hash_3d_volume(model,render_volume_resolution,save_pcd_path,save_data
 
     print(f"range from ({x_min},{y_min},{z_min}) to ({x_max},{y_max},{z_max})")
 
-
     [x,y,z] = torch.meshgrid(torch.linspace(x_min, x_max, H), torch.linspace(y_min,y_max, W),\
                     torch.linspace(z_min, z_max, D))
 
     x = x.contiguous().view(-1, 1)
     y = y.contiguous().view(-1, 1)
     z = z.contiguous().view(-1, 1)
-
-
     xyz = torch.cat([x,y,z],dim = -1).to(device = device)
 
     with torch.no_grad():
@@ -195,35 +179,22 @@ def render_hash_image(model,render_img_resolution,save_path):
     img = (rgb.detach().cpu().numpy() * 255).astype(np.uint8)
     model.hash_mod = True
 
-    # with torch.no_grad():
-    #     rgb = (model.net(xy).view(H, W, C) + 1) / 2
-    #     img = (to_numpy(rgb)*255).astype(np.uint8)
-
     io.imsave(save_path,img)
     print(f"range from ({x_min},{y_min}) to ({x_max},{y_max})")
 
-    rgb =  np.round(to_numpy(rgb.view(-1,3)) * 255).astype(np.uint8)
-    xy = to_numpy(xy)
-    res = np.concatenate([xy,rgb],axis=-1)
-
-    save_data(res,'hash_images/2d_hash_table.mat')
-
-# img_raw [N,3]
-# img_const [N,3]
 @torch.no_grad()
 def render_error_image(img_raw,img_const,sidelength,save_path):
     img_error = abs(to_numpy(img_raw) - to_numpy(img_const))
     img_error = img_error.reshape((sidelength[0],sidelength[1],3))*255
     img_error = img_error.astype(np.uint8)
-
     io.imsave(save_path,img_error)
 
 @torch.no_grad()
-def render_volume(model,hash_table_length,render_volume_resolution = 255):
+def render_volume(model,pc_path,render_volume_resolution = 255):
     device = torch.device('cuda')
     # pointCloud = np.zeros(hash_table_length,6) # x,y,z,r,g,b
     hash_table = model.table.detach().cpu().numpy()
-    hash_table = normalize(hash_table,axis=0,norm="max") # 归一化
+    hash_table = normalize(hash_table,axis=0,norm="max") 
     hash_table *= render_volume_resolution
     xyz = hash_table.astype(int)
     placeHolder = torch.randn(1,2).to(device)
@@ -233,13 +204,13 @@ def render_volume(model,hash_table_length,render_volume_resolution = 255):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(xyz)
     pcd.colors = o3d.utility.Vector3dVector(rgb)
-    o3d.io.write_point_cloud(f"pointCloud/res45_2_64_w1.ply", pcd)
+    o3d.io.write_point_cloud(pc_path, pcd)
 
     return pcd
 
 @torch.no_grad()
 def save_data(data,save_path):
-    # save_mod : 'mat', 'npy'
+    # file : 'mat', 'npy'
     if isinstance(data,torch.Tensor):
         data = to_numpy(data)
     if save_path[-3:] == 'mat':
