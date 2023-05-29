@@ -158,7 +158,6 @@ class DinerMLP_interp(nn.Module):
         
         self.net = nn.Sequential(*self.net)
 
-    # coords [N,H*W,2]
     def forward(self, coords):
         grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2]
         net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
@@ -181,7 +180,6 @@ class Diner_MLP_CP(nn.Module):
         self.width = in_features
         self.n = n_vectors
         self.hash_mod = True
-        # self.dim = len(hash_table_resolution)
 
         if len(self.hash_table_resolution) == 2:
             self.x = nn.parameter.Parameter(1e-4 * (torch.rand(self.hash_table_resolution[0],self.width,self.n)*2 -1),requires_grad = True)
@@ -201,7 +199,7 @@ class Diner_MLP_CP(nn.Module):
             self.net.append(ReluLayer(hidden_features, hidden_features))
 
         self.net.append(nn.Linear(hidden_features, out_features))
-        # self.net.append(nn.Sigmoid())
+
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
@@ -533,88 +531,6 @@ class NeRF(nn.Module):
             output = self.net(coords)
             output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
-
-class WaveLayer(nn.Module):
-    def __init__(self, in_features, out_features,bias=True,
-                 is_first=False,omega_0 = 30):
-        super().__init__()
-        self.in_features = in_features
-        self.is_first = is_first
-        self.omega_0 = omega_0
-        # 正态分布 N (0,1)
-        self.bias = nn.parameter.Parameter(torch.randn(out_features) / 10,requires_grad = True)
-
-        # self.bias = nn.parameter.Parameter(torch.randn(out_features),requires_grad = True)
-
-        # 均匀分布 U (-1,1)
-        # self.bias = nn.parameter.Parameter(torch.rand(out_features) * 2 - 1.0,requires_grad = True)
-
-        self.linear = nn.Linear(in_features, out_features)
-
-        self.init_weights()
-
-    def init_weights(self):
-        with torch.no_grad():
-            if self.is_first:
-                self.linear.weight.uniform_(-1 / self.in_features, 
-                                             1 / self.in_features)      
-            else:
-                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0,
-                                             np.sqrt(6 / self.in_features) / self.omega_0)
-
-    def forward(self, input):
-        x1 = self.linear(input)
-        x2 = self.linear(input) + self.bias
-        return torch.sin(self.omega_0 * x1) * torch.exp(- x2*x2 / 2.0)
-
-class WaveNet(nn.Module):
-    def __init__(self,hash_mod,hash_table_length, in_features, hidden_features, hidden_layers, out_features, outermost_linear=True,first_omega_0=30, hidden_omega_0=30.0):
-        super().__init__()
-
-
-        self.hash_mod = hash_mod
-        if hash_mod:
-            self.table = nn.parameter.Parameter(torch.randn((hash_table_length,in_features)),requires_grad = True)
-
-        self.net = []
-        self.net.append(WaveLayer(in_features, hidden_features, 
-                                  is_first=True, omega_0=first_omega_0))
-
-        for i in range(hidden_layers):
-            self.net.append(WaveLayer(hidden_features, hidden_features,
-                                      is_first=False, omega_0=hidden_omega_0))
-
-        if outermost_linear:
-            final_linear = nn.Linear(hidden_features, out_features)
-            
-            with torch.no_grad():
-                final_linear.weight.uniform_(-np.sqrt(6 / hidden_features) / hidden_omega_0,
-                                              np.sqrt(6 / hidden_features) / hidden_omega_0)
-                
-            self.net.append(final_linear)
-        else:
-            self.net.append(WaveLayer(hidden_features, out_features,
-                                      is_first=False, omega_0=hidden_omega_0))
-        
-        self.net = nn.Sequential(*self.net)
-
-
-    def forward(self, coords):
-        if self.hash_mod:
-            output = self.net(self.table)
-            output = torch.clamp(output, min = -1.0,max = 1.0)
-        else:
-            output = self.net(coords)
-            output = torch.clamp(output, min = -1.0,max = 1.0)
-        return output
-
-# Activation Function
-def WaveletActivation(x):
-    out = torch.sin(30*x) * torch.exp(- x*x / 2.0)
-    return out
-
-def SincActivation(x):
-    return torch.sin(x) / torch.abs(x)
 
 
 class HashSiren_Lessless(nn.Module):
