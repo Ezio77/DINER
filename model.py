@@ -143,7 +143,6 @@ class DinerMLP_interp(nn.Module):
     
         self.table = nn.parameter.Parameter(1e-4 * (torch.rand((hash_table_resolution[0]*hash_table_resolution[1],in_features))*2 -1),requires_grad = True)
 
-
         self.net = []
         self.net.append(ReluLayer(in_features, hidden_features))
 
@@ -161,7 +160,7 @@ class DinerMLP_interp(nn.Module):
 
     # coords [N,H*W,2]
     def forward(self, coords):
-        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2] 输入的坐标
+        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2]
         net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
         output = self.net(net_in)
         output = torch.clamp(output, min = -1.0,max = 1.0)
@@ -256,9 +255,6 @@ class SineLayer(nn.Module):
             else:
                 self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0,
                                              np.sqrt(6 / self.in_features) / self.omega_0)
-
-                # self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) * np.pi / 2 * self.omega_0, 
-                #                              np.sqrt(6 / self.in_features) * np.pi / 2 * self.omega_0)
         
     def forward(self, input):
         out = torch.sin(self.omega_0 * self.linear(input))
@@ -438,7 +434,7 @@ class DinerSiren_interp(nn.Module):
         # coords.reshape(1,self.opt.sidelength[0],self.opt.sidelength[1],2)
         # coords = coords.permute(0,3,1,2)
 
-        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2] 输入的坐标
+        grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2]
 
         # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
 
@@ -477,7 +473,7 @@ class Embedding(nn.Module):
         self.out_channels = in_channels*(len(self.funcs)*N_freqs+1)
 
         if logscale:
-            self.freq_bands = 2**torch.linspace(0, N_freqs-1, N_freqs) #返回一个一维的tensor（张量），这个张量包含了从start到end（包括端点）的等距的steps个数据点。这里返回的就是 0,1,2,3...,N-1
+            self.freq_bands = 2**torch.linspace(0, N_freqs-1, N_freqs)
         else:
             self.freq_bands = torch.linspace(1, 2**(N_freqs-1), N_freqs)
 
