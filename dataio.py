@@ -1,8 +1,5 @@
 import math
 import os
-import errno
-import matplotlib.colors as colors
-import matplotlib as mpl
 import skimage
 import skimage.filters
 from skimage import io
@@ -13,7 +10,6 @@ from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 import numpy as np
 from skimage.color import rgb2gray
 from pykdtree.kdtree import KDTree
-from opt import HyperParameters
 import utils
 
 class ImageData(Dataset):

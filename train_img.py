@@ -5,10 +5,8 @@ from model import Siren,MLP,DinerMLP,DinerSiren
 from dataio import ImageData
 import time
 import utils
-from sklearn.preprocessing import normalize
 from tqdm.autonotebook import tqdm
 from opt import HyperParameters
-from loss import relative_l2_loss
 
 
 class Logger:

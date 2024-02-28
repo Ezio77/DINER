@@ -4,11 +4,9 @@ import torch
 import skimage
 from skimage import io
 import imageio
-from opt import HyperParameters
 from sklearn.preprocessing import normalize
 import open3d as o3d
 import scipy.io
-from opt import HyperParameters
 from tqdm.autonotebook import tqdm
 import torchvision.transforms.functional as F
 from PIL import Image

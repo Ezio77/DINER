@@ -1,8 +1,3 @@
-import torch
-from torch import nn
-import numpy as np
-
-
 def relative_l2_loss(output,targets):
     output = (output + 1) / 2.
     targets = (targets + 1) / 2.

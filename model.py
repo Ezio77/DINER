@@ -160,7 +160,7 @@ class DinerMLP_interp(nn.Module):
 
     def forward(self, coords):
         grid = coords[None,None,...].to(device="cuda:0") # [1,1,N,2]
-        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
+        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().transpose(1,0)
         output = self.net(net_in)
         output = torch.clamp(output, min = -1.0,max = 1.0)
         return output
@@ -369,7 +369,7 @@ class DinerSiren_interp(nn.Module):
         # temp_input = self.table_list[1,:,:].reshape(1,self.opt.input_sidelength[0],self)
 
         # net_in [640000,4]
-        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().view(-1,self.in_features)
+        net_in = nn.functional.grid_sample(self.table.reshape(1,self.hash_table_resolution[0],self.hash_table_resolution[1],self.in_features).permute(0,3,1,2),grid,mode = "bilinear",padding_mode = 'zeros',align_corners = True).squeeze().transpose(1,0)
 
         # net_in = net_in.permute(0,2,3,1).reshape(self.opt.output_sidelength[0],self.opt.output_sidelength[1],2)
         # net_in = net_in.permute(0,2,3,1).squeeze().reshape(-1,2)
